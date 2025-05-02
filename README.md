@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+# Paper-Search-and-Analysis-System
+=======
 # Paper Search and Analysis System
 
 This project implements a web-based academic paper search and analysis system based on **pasa-7b-selector** and **DeepSeek API**.  
@@ -8,7 +11,7 @@ and then leverages the **DeepSeek API** to perform **relevance analysis** betwee
 
 
 ## Model Preparation
-Download models [`pasa-7b-selector`](https://huggingface.cobytedance-research/pasa-7b-selector) and [`all-MiniLM-L6-v2`](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) and save them in the folder.
+Download models [`pasa-7b-selector`](https://huggingface.co/bytedance-research/pasa-7b-selector) and [`all-MiniLM-L6-v2`](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) and save them in the folder.
 ```
 .
 └── checkpoints/           
@@ -52,3 +55,4 @@ http://localhost:6006
 
 
 
+>>>>>>> master
