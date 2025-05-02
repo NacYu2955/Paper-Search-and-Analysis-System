@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Paper-Search-and-Analysis-System
 =======
 # Paper Search and Analysis System
