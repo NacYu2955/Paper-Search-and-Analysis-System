@@ -48,8 +48,3 @@ Open your browser and go to:
 http://localhost:6006
 ```
 
-
-
-
-
->>>>>>> master
