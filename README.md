@@ -1,6 +1,3 @@
-
-# Paper-Search-and-Analysis-System
-=======
 # Paper Search and Analysis System
 
 This project implements a web-based academic paper search and analysis system based on **pasa-7b-selector** and **DeepSeek API**.  
