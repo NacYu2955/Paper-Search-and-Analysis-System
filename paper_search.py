@@ -37,7 +37,7 @@ class PaperSearch:
             
             # Initialize DeepSeek client
             self.deepseek_client = OpenAI(
-                api_key="sk-0ab105e607314279b67232d2de420d55",
+                api_key="your deepseek key",
                 base_url="https://api.deepseek.com/v1"
             )
             
