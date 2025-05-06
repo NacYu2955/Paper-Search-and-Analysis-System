@@ -36,7 +36,6 @@ from tqdm import tqdm
 warnings.simplefilter("always")
 
 
-GOOGLE_KEY   = 'd838e5105dceec7313367659fd09f6cb4821be36'
 DEEPSEEK_API_KEY = 'your Deepseek keys'
 arxiv_client = arxiv.Client(delay_seconds = 0.05)
 id2paper     = json.load(open("data/paper_database/id2paper.json"))
