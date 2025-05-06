@@ -7,15 +7,15 @@ import torch
 from models import Agent
 from openai import OpenAI
 
-# Set environment variable to optimize memory usage
+# 设置环境变量以优化内存使用
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
 class PaperSearch:
     def __init__(self, model_path, selector_path):
         """
-        Initialize models and data
-        :param model_path: path to all-MiniLM-L6-v2 model
-        :param selector_path: path to pasa-7b-selector model
+        初始化模型和数据
+        :param model_path: all-MiniLM-L6-v2模型路径
+        :param selector_path: pasa-7b-selector模型路径
         """
         try:
             if not os.path.exists(model_path):
@@ -25,19 +25,19 @@ class PaperSearch:
             self.model = SentenceTransformer(model_path, device='cuda' if torch.cuda.is_available() else 'cpu')
             print("模型加载完成")
             
-            # Initialize selector model
+            # 初始化selector模型
             if selector_path:
                 print(f"正在加载selector模型: {selector_path}")
                 self.selector = Agent(selector_path)
                 print("selector模型加载完成")
-                # Load prompt templates
+                # 加载提示模板
                 self.prompts = json.load(open("agent_prompt.json"))
             else:
                 self.selector = None
             
-            # Initialize DeepSeek client
+            # 初始化DeepSeek客户端
             self.deepseek_client = OpenAI(
-                api_key="your deepseek key",
+                api_key="sk-0ab105e607314279b67232d2de420d55",
                 base_url="https://api.deepseek.com/v1"
             )
             
@@ -49,7 +49,7 @@ class PaperSearch:
         self.embeddings = None
         
     def load_papers(self):
-        # Load papers.jsonl database
+        """加载papers.jsonl数据库"""
         try:
             if not os.path.exists("papers.jsonl"):
                 raise FileNotFoundError("找不到papers.jsonl文件")
@@ -66,12 +66,13 @@ class PaperSearch:
             if not self.papers:
                 raise ValueError("papers.jsonl文件为空")
                 
-            # Generate text representations of papers
+            # 生成论文的文本表示
             texts = [f"{paper['title']} {paper['abstract']}" for paper in self.papers]
             
-            # Compute embeddings
+            # 计算embeddings
             print("正在计算论文向量...")
-            self.embeddings = self.model.encode(texts, show_progress_bar=True, batch_size=32)  
+            self.embeddings = self.model.encode(texts, show_progress_bar=True,
+                                              batch_size=32)  # 直接获取numpy数组
             print(f"完成向量计算,共 {len(self.papers)} 篇论文")
             
         except Exception as e:
@@ -80,7 +81,7 @@ class PaperSearch:
 
     def analyze_citation(self, query_paper, selected_paper):
         """
-        Use DeepSeek API to analyze citation relationship and provide suggestions
+        使用DeepSeek API分析论文引用关系并给出引用建议
         """
         try:
             prompt = f"""请分析以下两篇论文的关系，并给出如何在新论文中引用该文献的具体建议。
@@ -146,14 +147,17 @@ Citation Suggestion:
             return []
 
     def clear_gpu_memory(self):
+        """清理GPU内存"""
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
 
     def batch_process_selector(self, results, user_query, batch_size=5):
+        """分批处理selector评分"""
         scores = []
         for i in range(0, len(results), batch_size):
             batch = results[i:i + batch_size]
+            # 准备selector的输入
             select_prompts = []
             for result in batch:
                 paper = result['paper']
@@ -165,28 +169,33 @@ Citation Suggestion:
                 select_prompts.append(prompt)
             
             try:
+                # 获取selector的评分
                 batch_scores = self.selector.infer_score(select_prompts)
                 scores.extend(batch_scores)
-
+                # 清理GPU内存
                 self.clear_gpu_memory()
             except Exception as e:
                 print(f"处理批次 {i//batch_size + 1} 时出错: {str(e)}")
+                # 如果出错，给这个批次的所有论文一个默认分数
                 scores.extend([0.0] * len(batch))
         
         return scores
 
     def generate_bibtex(self, paper):
         """
-        Batch process selector scores
+        生成论文的BibTeX格式
         """
         try:
+            # 获取引用key
             if 'citations' in paper and paper['citations'] and 'key' in paper['citations'][0]:
                 entry_key = paper['citations'][0]['key']
             elif 'key' in paper:
                 entry_key = paper['key']
             else:
+                # 如果没有key字段，则使用标题作为备选
                 entry_key = paper['title'][:30].replace(' ', '_').lower()
 
+            # 获取论文类型
             if 'citations' in paper and paper['citations'] and 'type' in paper['citations'][0]:
                 entry_type = paper['citations'][0]['type']
             elif 'type' in paper:
@@ -194,6 +203,7 @@ Citation Suggestion:
             else:
                 entry_type = 'article'
 
+            # 处理作者
             if 'citations' in paper and paper['citations'] and 'author' in paper['citations'][0]:
                 author_str = paper['citations'][0]['author']
             elif 'author' in paper:
@@ -201,10 +211,12 @@ Citation Suggestion:
             else:
                 author_str = 'Unknown'
 
+            # 构建非空字段列表
             fields = []
             fields.append(f"    author = {{{author_str}}}")
             fields.append(f"    title = {{{paper['title']}}}")
 
+            # 处理期刊/会议信息
             if entry_type == 'article':
                 if 'citations' in paper and paper['citations'] and 'journal' in paper['citations'][0]:
                     fields.append(f"    journal = {{{paper['citations'][0]['journal']}}}")
@@ -220,12 +232,14 @@ Citation Suggestion:
                 elif 'organization' in paper:
                     fields.append(f"    organization = {{{paper['organization']}}}")
 
+            # 添加其他字段
             for field in ['volume', 'number', 'pages', 'year', 'publisher']:
                 if 'citations' in paper and paper['citations'] and field in paper['citations'][0]:
                     fields.append(f"    {field} = {{{paper['citations'][0][field]}}}")
                 elif field in paper:
                     fields.append(f"    {field} = {{{paper[field]}}}")
             
+            # 生成格式化的BibTeX
             bibtex = "@{}{{{},\n".format(entry_type, entry_key)
             bibtex += ",\n".join(fields)
             bibtex += "\n}"
@@ -237,37 +251,40 @@ Citation Suggestion:
 
     def search_papers(self, query_paper, top_k=5, user_query=None):
         """
-        Search for similar papers using vector similarity and filter them with the selector model
-        :param query_paper: Input the paper information, which can be a string (title) or a dictionary {"title": str, "abstract": str}
-        :param top_k: Returns the top k most similar papers
-        :param user_query: User query, used for selector filtering
+        使用向量相似度搜索相似论文，并用selector模型进行筛选
+        :param query_paper: 输入论文信息，可以是字符串(标题)或字典{"title": str, "abstract": str}
+        :param top_k: 返回前k个最相似的论文
+        :param user_query: 用户查询，用于selector过滤
         :return: [(paper, similarity_score, select_score)]
         """
-        # Processing input, supporting direct input of title strings
+        # 处理输入，支持直接输入标题字符串
         if isinstance(query_paper, str):
             query_text = query_paper
         else:
             query_text = f"{query_paper['title']} {query_paper.get('abstract', '')}"
         
+        # 生成关键词
         print("\n正在生成关键词...")
         keywords = self.generate_keywords(query_text)
         print(f"生成的关键词: {', '.join(keywords)}")
         
-        # Use keywords to enhance queries
+        # 使用关键词增强查询
         enhanced_query = f"{query_text} {' '.join(keywords)}"
         
-        # Generate the embedding of the query paper
+        # 生成查询论文的embedding
         query_embedding = self.model.encode([enhanced_query])[0]
         
+        # 计算余弦相似度
         similarities = cosine_similarity([query_embedding], self.embeddings)[0]
         
-        # Obtain the index of the most similar papers and retain 50 for selector filtering
-        top_indices = np.argsort(similarities)[::-1][:100]
+        # 获取最相似的论文索引，保留50篇用于selector过滤
+        top_indices = np.argsort(similarities)[::-1][:50]
         
-        # Return the paper and the similarity score
+        # 返回论文和相似度分数
         results = []
         for idx in top_indices:
             paper = self.papers[idx]
+            # 生成BibTeX
             bibtex = self.generate_bibtex(paper)
             results.append({
                 "paper": paper,
@@ -277,19 +294,25 @@ Citation Suggestion:
             
         print(f"\n通过相似度初筛找到 {len(results)} 篇候选论文")
         
+        # 如果启用了selector且提供了user_query，进行精细过滤
         if self.selector and user_query:
             try:
-                print(f"\n使用selector进行过滤...")
+                # 使用关键词作为selector的查询
+                keyword_query = ', '.join(keywords)
+                print(f"\n使用关键词进行selector过滤: {keyword_query}")
                 
-                scores = self.batch_process_selector(results, user_query)
+                # 分批处理selector评分
+                scores = self.batch_process_selector(results, keyword_query)
                 print(f"Selector评分结果: {scores}")
                 
+                # 更新结果，添加selector分数
                 for i, result in enumerate(results):
                     result['select_score'] = scores[i]
                 
+                # 按selector分数和相似度排序
                 results.sort(key=lambda x: (x['select_score'], x['similarity']), reverse=True)
                 
-                # Deduplication: Remove papers with the same title
+                # 去重：去除标题相同的论文
                 seen_titles = set()
                 unique_results = []
                 for result in results:
@@ -299,13 +322,13 @@ Citation Suggestion:
                         unique_results.append(result)
                 results = unique_results
                 
-                # Only retain the results with a selector score greater than 0.3
+                # 只保留selector评分大于0.3的结果
                 filtered_results = [r for r in results if r['select_score'] > 0.3]
                 
-                # If the filtered result is empty, the top 3 papers with the highest ratings will be returned
+                # 如果过滤后的结果为空，则返回评分最高的3篇论文
                 if not filtered_results:
-                    print("没有论文评分大于0.3，返回评分最高的3篇论文")
-                    results = results[:3]
+                    print("没有论文评分大于0.1，返回评分最高的3篇论文")
+                    results = results[:1]
                 else:
                     results = filtered_results
                 
@@ -316,19 +339,23 @@ Citation Suggestion:
                 print("将使用相似度排序结果")
                 results = results[:top_k]
         else:
+            # 如果没有使用selector，直接返回top_k个结果
             results = results[:top_k]
             
         return results
 
     def analyze_paper(self, query_paper, paper):
         """
-        Analyze individual papers and generate BibTeX
+        分析单篇论文并生成BibTeX
         """
         try:
+            # 进行引用分析
             citation_analysis = self.analyze_citation(query_paper, paper)
             
+            # 生成BibTeX格式
             if 'citations' in paper and paper['citations']:
                 citation = paper['citations'][0]
+                # 使用citation中的所有字段
                 entry_type = citation.get('type', 'article')
                 entry_key = citation.get('key', '')
                 journal = citation.get('journal', '')
@@ -338,6 +365,7 @@ Citation Suggestion:
                 year = citation.get('year', '')
                 publisher = citation.get('publisher', '')
             else:
+                # 如果没有citation信息，使用默认值
                 entry_type = 'article'
                 entry_key = paper['title'][:30].replace(' ', '_')
                 journal = paper.get('secondary_title', paper.get('journal', 'Unknown'))
@@ -347,6 +375,7 @@ Citation Suggestion:
                 year = paper.get('year', 'n.d.')
                 publisher = paper.get('publisher', '')
             
+            # 构建非空字段列表
             fields = []
             fields.append(f"    title = {{{paper['title']}}}")
             fields.append(f"    author = {{{' and '.join(paper.get('authors', ['Unknown']))}}}")
@@ -364,6 +393,7 @@ Citation Suggestion:
             if publisher:
                 fields.append(f"    publisher = {{{publisher}}}")
             
+            # 生成格式化的BibTeX
             bibtex = "@{}{{{}，\n".format(entry_type, entry_key)
             bibtex += ",\n".join(fields)
             bibtex += "\n}"
@@ -382,8 +412,9 @@ Citation Suggestion:
 def main():
     """主函数"""
     try:
+        # 指定本地模型路径
         model_path = './all-MiniLM-L6-v2'
-        selector_path = "checkpoints/pasa-7b-selector"
+        selector_path = "/root/autodl-tmp/pasa/checkpoints/pasa-7b-selector"
         
         if not os.path.exists(model_path):
             print(f"错误: 模型文件夹不存在: {model_path}")
@@ -392,19 +423,24 @@ def main():
             
         searcher = PaperSearch(model_path, selector_path)
         
+        # 加载论文数据
         searcher.load_papers()
         
+        # 获取用户输入的论文标题
         print("\n请输入要搜索的内容:")
         query_title = input().strip()
         
         if not query_title:
             raise ValueError("论文标题不能为空")
             
+        # 使用论文标题作为查询要求
         user_query = query_title
         
+        # 搜索相似论文
         print("\n正在搜索相似论文...")
         similar_papers = searcher.search_papers(query_title, user_query=user_query)
         
+        # 输出相似论文的基本信息
         print(f"\n输入论文标题: {query_title}")
         print(f"使用selector进行过滤，查询要求: {user_query}")
         print("\n找到的相似论文:")
