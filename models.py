@@ -16,31 +16,31 @@ import torch
 import gc
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
-
+# 设置环境变量以避免内存碎片化
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
 
 class Agent:
     def __init__(self, model_name):
-
+        # 清理GPU内存
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             gc.collect()
             
-
+        # 计算可用GPU内存
         gpu_memory = torch.cuda.get_device_properties(0).total_memory
         gpu_memory_allocated = torch.cuda.memory_allocated(0)
         gpu_memory_free = gpu_memory - gpu_memory_allocated
         gpu_memory_free_gb = gpu_memory_free / (1024**3)  # 转换为GB
         
-
-        if gpu_memory_free_gb < 2:  
+        # 根据可用内存动态设置device_map
+        if gpu_memory_free_gb < 2:  # 如果可用内存小于2GB
             device_map = {
                 'transformer.word_embeddings': 'cpu',
                 'transformer.word_embeddings_layernorm': 'cpu',
                 'lm_head': 'cuda:0'
             }
- 
-            num_layers = 32  
+            # 动态分配transformer层
+            num_layers = 32  # 根据实际模型层数调整
             for i in range(num_layers):
                 if i < num_layers // 2:
                     device_map[f'transformer.h.{i}'] = 'cpu'
@@ -49,7 +49,7 @@ class Agent:
         else:
             device_map = "auto"
             
-   
+        # 使用半精度加载模型
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,
             torch_dtype=torch.float16,
@@ -58,21 +58,22 @@ class Agent:
             max_memory={0: f"{int(gpu_memory_free_gb*0.8)}GB", "cpu": "24GB"}  # 使用80%的可用GPU内存
         )
         
-
+        # 配置tokenizer
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_name,
             padding_side='left',
-            model_max_length=996  
+            model_max_length=996  # 减小最大序列长度
         )
         
-
+        # 启用梯度检查点以节省显存
         if hasattr(self.model, "gradient_checkpointing_enable"):
             self.model.gradient_checkpointing_enable()
             
-
+        # 设置模型为评估模式
         self.model.eval()
     
     def _clear_memory(self):
+        """清理内存的辅助函数"""
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             gc.collect()
@@ -87,17 +88,19 @@ class Agent:
                 return_tensors='pt', 
                 padding=True, 
                 truncation=True,
-                max_length=996
+                max_length=1024
             )
             
             all_probs = []
             batch_size = 4  
             
             for i in range(0, len(prompts), batch_size):
+                # 清理内存
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                     gc.collect()
                 
+                # 获取当前批次
                 batch_input_ids = encoded_input.input_ids[i:i+batch_size].to(self.model.device)
                 batch_attention_mask = encoded_input.attention_mask[i:i+batch_size].to(self.model.device)
                 
@@ -114,8 +117,10 @@ class Agent:
                             eos_token_id=self.tokenizer.eos_token_id
                         )
                         
+                        # 获取True token的概率
                         true_token_id = self.tokenizer.convert_tokens_to_ids('True')
                         if true_token_id >= outputs.scores[0].size(1):
+                            # 如果True token id超出范围，返回0概率
                             batch_probs = [0.0] * batch_input_ids.size(0)
                         else:
                             batch_probs = outputs.scores[0].softmax(dim=-1)[:, true_token_id].cpu().numpy().tolist()
@@ -126,6 +131,7 @@ class Agent:
                         print(f"Error in batch {i}: {str(e)}")
                         all_probs.extend([0.0] * batch_input_ids.size(0))
                     
+                    # 立即清理当前批次的内存
                     del batch_input_ids, batch_attention_mask
                     if 'outputs' in locals():
                         del outputs
@@ -138,6 +144,7 @@ class Agent:
 
     def infer(self, prompt, sample=False):
         try:
+            # 清理内存
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 gc.collect()
@@ -147,14 +154,14 @@ class Agent:
                 "role": "user"
             }],
             tokenize=False,
-            max_length=996,
+            max_length=1024,
             add_generation_prompt=True)
             
             model_inputs = self.tokenizer(
                 [text], 
                 return_tensors="pt",
                 truncation=True,
-                max_length=996,
+                max_length=1024,
             ).to(self.model.device)
             
             with torch.inference_mode():
@@ -178,11 +185,13 @@ class Agent:
                     **generation_config
                 )
                 
+                # 确保索引不越界
                 input_length = model_inputs.input_ids.size(1)
                 generated_ids = generated_ids[:, input_length:]
                 
                 response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
                 
+                # 清理内存
                 del model_inputs, generated_ids
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
@@ -199,6 +208,7 @@ class Agent:
             return []
             
         try:
+            # 清理内存
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 gc.collect()
@@ -208,13 +218,14 @@ class Agent:
                 "role": "user"
             }],
             tokenize=False,
-            max_length=256,
+            max_length=1024,
             add_generation_prompt=True) for prompt in prompts]
             
             responses = []
             
             for i in range(0, len(texts), batch_size):
                 try:
+                    # 清理内存
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()
                         gc.collect()
@@ -249,12 +260,14 @@ class Agent:
                             **generation_config
                         )
                         
+                        # 确保索引不越界
                         input_length = model_inputs.input_ids.size(1)
                         generated_ids = generated_ids[:, input_length:]
                         
                         batch_responses = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
                         responses.extend(batch_responses)
                         
+                    # 清理当前批次的内存
                     del model_inputs, generated_ids
                     if torch.cuda.is_available():
                         torch.cuda.empty_cache()

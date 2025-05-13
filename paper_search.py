@@ -120,32 +120,6 @@ Citation Suggestion:
         except Exception as e:
             return f"引用分析生成失败: {str(e)}"
 
-    def generate_keywords(self, text):
-        """
-        使用DeepSeek API从文本中提取关键词
-        """
-        try:
-            prompt = f"""请从以下文本中提取1-3个最相关的关键词，用逗号分隔：
-
-{text}
-
-请只返回关键词，不要包含其他文字。关键词应该是专业术语或重要概念。"""
-
-            response = self.deepseek_client.chat.completions.create(
-                model="deepseek-chat",
-                messages=[
-                    {"role": "system", "content": "你是一个专业的学术助手，擅长从文本中提取关键概念和术语。"},
-                    {"role": "user", "content": prompt}
-                ],
-                stream=False
-            )
-            
-            keywords = response.choices[0].message.content.strip()
-            return [k.strip() for k in keywords.split(',')]
-        except Exception as e:
-            print(f"关键词生成失败: {str(e)}")
-            return []
-
     def clear_gpu_memory(self):
         """清理GPU内存"""
         if torch.cuda.is_available():
@@ -157,7 +131,6 @@ Citation Suggestion:
         scores = []
         for i in range(0, len(results), batch_size):
             batch = results[i:i + batch_size]
-            # 准备selector的输入
             select_prompts = []
             for result in batch:
                 paper = result['paper']
@@ -167,18 +140,13 @@ Citation Suggestion:
                     user_query=user_query
                 )
                 select_prompts.append(prompt)
-            
             try:
-                # 获取selector的评分
                 batch_scores = self.selector.infer_score(select_prompts)
                 scores.extend(batch_scores)
-                # 清理GPU内存
                 self.clear_gpu_memory()
             except Exception as e:
                 print(f"处理批次 {i//batch_size + 1} 时出错: {str(e)}")
-                # 如果出错，给这个批次的所有论文一个默认分数
                 scores.extend([0.0] * len(batch))
-        
         return scores
 
     def generate_bibtex(self, paper):
@@ -249,100 +217,241 @@ Citation Suggestion:
             print(f"BibTeX生成失败: {str(e)}")
             return ""
 
-    def search_papers(self, query_paper, top_k=5, user_query=None):
+    def generate_queries(self, text):
         """
-        使用向量相似度搜索相似论文，并用selector模型进行筛选
-        :param query_paper: 输入论文信息，可以是字符串(标题)或字典{"title": str, "abstract": str}
-        :param top_k: 返回前k个最相似的论文
-        :param user_query: 用户查询，用于selector过滤
-        :return: [(paper, similarity_score, select_score)]
+        使用DeepSeek API生成3个不同宽泛程度的查询，并添加原始查询
+        :param text: 输入文本
+        :return: 包含4个查询的列表，从原始查询到最具体
         """
-        # 处理输入，支持直接输入标题字符串
+        try:
+            # 首先添加原始查询，直接使用输入文本
+            queries = [text]
+            
+            prompt = f"""请将以下文本改写成3个不同宽泛程度的"show me research on xxx"格式查询，要求：
+1. 第一个查询最宽泛，关注整体领域和主题
+2. 第二个查询适中，关注具体研究问题
+3. 第三个查询最具体，关注具体方法和技术
+4. 每个查询不超过50字
+5. 使用专业学术语言
+
+
+示例1：
+输入：机器学习在医疗诊断中的应用
+输出：
+Level 1 (Broadest): show me research on artificial intelligence in healthcare
+Level 2 (Moderate): show me research on deep learning for medical image analysis
+Level 3 (Specific): show me research on convolutional neural network based tumor detection in magnetic resonance imaging scans
+
+
+
+文本内容：
+{text}
+
+请按以下格式输出：
+Level 1 (Broadest): show me research on [最宽泛查询]
+Level 2 (Moderate): show me research on [适中查询]
+Level 3 (Specific): show me research on [最具体查询]"""
+
+            response = self.deepseek_client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": "你是一个专业的学术助手，擅长将文本改写成不同广泛程度的查询。请确保使用完整的术语，不要使用任何缩写。"},
+                    {"role": "user", "content": prompt}
+                ],
+                stream=False
+            )
+            
+            result = response.choices[0].message.content.strip()
+            
+            # 解析返回的结果
+            for line in result.split('\n'):
+                if 'Level 1' in line:
+                    queries.append(line.split(':', 1)[1].strip())
+                elif 'Level 2' in line:
+                    queries.append(line.split(':', 1)[1].strip())
+                elif 'Level 3' in line:
+                    queries.append(line.split(':', 1)[1].strip())
+            
+            return queries
+        except Exception as e:
+            print(f"查询生成失败: {str(e)}")
+            return ["", "", "", ""]
+
+    def search_papers(self, query_paper, top_k=5, user_query=None, mode='multi-level', target_level=None):
+        """
+        支持两种模式：
+        - mode='original'：只返回原文查询结果（不分级）
+        - mode='multi-level'：返回指定level的结果
+        :param target_level: 指定要搜索的level（1-3），如果为None则使用原文查询
+        """
         if isinstance(query_paper, str):
             query_text = query_paper
         else:
             query_text = f"{query_paper['title']} {query_paper.get('abstract', '')}"
+
+        # 原文查询模式直接使用向量检索
+        if mode == 'original' or target_level is None:
+            print("\n使用原文查询模式...")
+            query_embedding = self.model.encode([query_text])[0]
+            similarities = cosine_similarity([query_embedding], self.embeddings)[0]
+            indices = np.argsort(similarities)[::-1][:50]
+            candidate_results = []
+            for idx in indices:
+                paper = self.papers[idx]
+                bibtex = self.generate_bibtex(paper)
+                candidate_results.append({
+                    "paper": paper,
+                    "similarity": similarities[idx],
+                    "bibtex": bibtex
+                })
+            print(f"\n找到 {len(candidate_results)} 篇候选论文")
+            
+            # 格式化候选结果
+            formatted_candidates = []
+            for result in candidate_results:
+                paper = result['paper']
+                formatted_result = {
+                    'title': paper['title'],
+                    'authors': paper['author'].split(' and ') if paper.get('author') else ['Unknown'],
+                    'year': paper.get('year', 'Unknown'),
+                    'abstract': paper.get('abstract', 'No abstract available'),
+                    'similarity': float(result['similarity']),
+                    'bibtex': result['bibtex']
+                }
+                formatted_candidates.append(formatted_result)
+            
+            # 使用 selector 过滤结果
+            if self.selector:
+                try:
+                    print("\n使用selector进行过滤...")
+                    select_scores = self.batch_process_selector(candidate_results, query_text)
+                    for i, result in enumerate(candidate_results):
+                        result['select_score'] = select_scores[i]
+                    candidate_results.sort(key=lambda x: (x['select_score'], x['similarity']), reverse=True)
+                    seen_titles = set()
+                    unique_results = []
+                    for result in candidate_results:
+                        title = result['paper']['title'].lower().strip()
+                        if title not in seen_titles:
+                            seen_titles.add(title)
+                            unique_results.append(result)
+                    candidate_results = unique_results
+                    filtered_results = [r for r in candidate_results if r['select_score'] > 0.3]
+                    if not filtered_results:
+                        print("没有论文评分大于0.3，返回评分最高的1篇论文")
+                        candidate_results = candidate_results[:1]
+                    else:
+                        candidate_results = filtered_results
+                    print(f"\n筛选后保留 {len(candidate_results)} 篇论文")
+                except Exception as e:
+                    print(f"Selector过滤失败: {str(e)}")
+                    print("将使用相似度排序结果")
+                    candidate_results = candidate_results[:top_k]
+            else:
+                candidate_results = candidate_results[:top_k]
+            
+            # 格式化最终结果
+            formatted_results = []
+            for result in candidate_results:
+                paper = result['paper']
+                formatted_result = {
+                    'title': paper['title'],
+                    'authors': paper['author'].split(' and ') if paper.get('author') else ['Unknown'],
+                    'year': paper.get('year', 'Unknown'),
+                    'abstract': paper.get('abstract', 'No abstract available'),
+                    'similarity': float(result['similarity']),
+                    'select_score': float(result.get('select_score', 0.0)),
+                    'citation_analysis': result.get('citation_analysis', '分析失败'),
+                    'bibtex': result['bibtex']
+                }
+                formatted_results.append(formatted_result)
+            
+            return {
+                'candidates': formatted_candidates,
+                'filtered': formatted_results
+            }
+            
+        # 分级查询模式
+        print(f"\n正在生成第{target_level}级查询...")
+        queries = self.generate_queries(query_text)
+        query = queries[target_level]
+        print(f"生成的查询: {query}")
         
-        # 生成关键词
-        print("\n正在生成关键词...")
-        keywords = self.generate_keywords(query_text)
-        print(f"生成的关键词: {', '.join(keywords)}")
-        
-        # 使用关键词增强查询
-        enhanced_query = f"{query_text} {' '.join(keywords)}"
-        
-        # 生成查询论文的embedding
-        query_embedding = self.model.encode([enhanced_query])[0]
-        
-        # 计算余弦相似度
+        query_embedding = self.model.encode([query])[0]
         similarities = cosine_similarity([query_embedding], self.embeddings)[0]
-        
-        # 获取最相似的论文索引，保留50篇用于selector过滤
-        top_indices = np.argsort(similarities)[::-1][:50]
-        
-        # 返回论文和相似度分数
-        results = []
-        for idx in top_indices:
+        indices = np.argsort(similarities)[::-1][:50]
+        candidate_results = []
+        for idx in indices:
             paper = self.papers[idx]
-            # 生成BibTeX
             bibtex = self.generate_bibtex(paper)
-            results.append({
+            candidate_results.append({
                 "paper": paper,
                 "similarity": similarities[idx],
                 "bibtex": bibtex
             })
-            
-        print(f"\n通过相似度初筛找到 {len(results)} 篇候选论文")
+        print(f"\n找到 {len(candidate_results)} 篇候选论文")
         
-        # 如果启用了selector且提供了user_query，进行精细过滤
-        if self.selector and user_query:
+        formatted_candidates = []
+        for result in candidate_results:
+            paper = result['paper']
+            formatted_result = {
+                'title': paper['title'],
+                'authors': paper['author'].split(' and ') if paper.get('author') else ['Unknown'],
+                'year': paper.get('year', 'Unknown'),
+                'abstract': paper.get('abstract', 'No abstract available'),
+                'similarity': float(result['similarity']),
+                'bibtex': result['bibtex']
+            }
+            formatted_candidates.append(formatted_result)
+            
+        if self.selector:
             try:
-                # 使用关键词作为selector的查询
-                keyword_query = ', '.join(keywords)
-                print(f"\n使用关键词进行selector过滤: {keyword_query}")
-                
-                # 分批处理selector评分
-                scores = self.batch_process_selector(results, keyword_query)
-                print(f"Selector评分结果: {scores}")
-                
-                # 更新结果，添加selector分数
-                for i, result in enumerate(results):
-                    result['select_score'] = scores[i]
-                
-                # 按selector分数和相似度排序
-                results.sort(key=lambda x: (x['select_score'], x['similarity']), reverse=True)
-                
-                # 去重：去除标题相同的论文
+                print(f"\n使用selector进行过滤: {query}")
+                select_scores = self.batch_process_selector(candidate_results, query)
+                for i, result in enumerate(candidate_results):
+                    result['select_score'] = select_scores[i]
+                candidate_results.sort(key=lambda x: (x['select_score'], x['similarity']), reverse=True)
                 seen_titles = set()
                 unique_results = []
-                for result in results:
+                for result in candidate_results:
                     title = result['paper']['title'].lower().strip()
                     if title not in seen_titles:
                         seen_titles.add(title)
                         unique_results.append(result)
-                results = unique_results
-                
-                # 只保留selector评分大于0.3的结果
-                filtered_results = [r for r in results if r['select_score'] > 0.3]
-                
-                # 如果过滤后的结果为空，则返回评分最高的3篇论文
+                candidate_results = unique_results
+                filtered_results = [r for r in candidate_results if r['select_score'] > 0.3]
                 if not filtered_results:
-                    print("没有论文评分大于0.1，返回评分最高的3篇论文")
-                    results = results[:1]
+                    print(f"没有论文评分大于0.3，返回评分最高的1篇论文")
+                    candidate_results = candidate_results[:1]
                 else:
-                    results = filtered_results
-                
-                print(f"\n经过selector筛选后保留 {len(results)} 篇论文")
-                
+                    candidate_results = filtered_results
+                print(f"\n筛选后保留 {len(candidate_results)} 篇论文")
             except Exception as e:
                 print(f"Selector过滤失败: {str(e)}")
                 print("将使用相似度排序结果")
-                results = results[:top_k]
+                candidate_results = candidate_results[:top_k]
         else:
-            # 如果没有使用selector，直接返回top_k个结果
-            results = results[:top_k]
+            candidate_results = candidate_results[:top_k]
             
-        return results
+        formatted_results = []
+        for result in candidate_results:
+            paper = result['paper']
+            formatted_result = {
+                'title': paper['title'],
+                'authors': paper['author'].split(' and ') if paper.get('author') else ['Unknown'],
+                'year': paper.get('year', 'Unknown'),
+                'abstract': paper.get('abstract', 'No abstract available'),
+                'similarity': float(result['similarity']),
+                'select_score': float(result.get('select_score', 0.0)),
+                'citation_analysis': result.get('citation_analysis', '分析失败'),
+                'bibtex': result['bibtex']
+            }
+            formatted_results.append(formatted_result)
+            
+        return {
+            'candidates': formatted_candidates,
+            'filtered': formatted_results
+        }
 
     def analyze_paper(self, query_paper, paper):
         """
@@ -444,17 +553,20 @@ def main():
         print(f"\n输入论文标题: {query_title}")
         print(f"使用selector进行过滤，查询要求: {user_query}")
         print("\n找到的相似论文:")
-        for i, result in enumerate(similar_papers, 1):
-            paper = result["paper"]
-            similarity = result["similarity"]
-            select_score = result.get('select_score', 0.0)
-            citation_analysis = result.get('citation_analysis', '')
-            bibtex = result['bibtex']
-            print(f"\n{i}. 论文标题: {paper['title']}")
-            print(f"   相似度得分: {similarity:.3f}")
-            print(f"   selector得分: {select_score:.3f}")
-            print(f"   引用分析: {citation_analysis}")
-            print(f"   BibTeX: {bibtex}")
+        for level, results in similar_papers.items():
+            level_name = "原始查询" if level == "level_0" else f"第{level.split('_')[1]}级查询"
+            print(f"\n{level_name}结果:")
+            for i, result in enumerate(results['filtered'], 1):
+                paper = result['paper']
+                similarity = result['similarity']
+                select_score = result['select_score']
+                citation_analysis = result['citation_analysis']
+                bibtex = result['bibtex']
+                print(f"\n{i}. 论文标题: {paper['title']}")
+                print(f"   相似度得分: {similarity:.3f}")
+                print(f"   selector得分: {select_score:.3f}")
+                print(f"   引用分析: {citation_analysis}")
+                print(f"   BibTeX: {bibtex}")
             
     except Exception as e:
         print(f"程序运行出错: {str(e)}")
