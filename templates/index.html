@@ -613,6 +613,12 @@
         // 全局变量用于终止上一次的请求
         window.currentSearchController = null;
 
+        // 生成唯一ID并存储到localStorage
+        if (!localStorage.getItem('my_uid')) {
+            localStorage.setItem('my_uid', Math.random().toString(36).substr(2, 10) + Date.now());
+        }
+        const my_uid = localStorage.getItem('my_uid');
+
         // 开关按钮逻辑
         document.addEventListener('DOMContentLoaded', function() {
             const switchBtn = document.getElementById('queryModeSwitch');
@@ -1067,10 +1073,14 @@
             }
         }
 
-        // 定时发送心跳，保持活跃
+        // 定时发送心跳，带上唯一ID
         setInterval(() => {
-            fetch('/heartbeat', { method: 'POST' });
-        }, 5000); // 5秒一次，保证10秒内有请求
+            fetch('/heartbeat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ uid: my_uid })
+            });
+        }, 5000);
 
         // 定时获取在线人数
         function updateOnlineUsers() {
