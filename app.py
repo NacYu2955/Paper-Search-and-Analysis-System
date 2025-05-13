@@ -152,7 +152,8 @@ def search_papers():
 
 @app.route('/heartbeat', methods=['POST'])
 def heartbeat():
-    user_id = request.remote_addr  # 如果有登录系统可用 user_id 替换
+    data = request.get_json(silent=True) or {}
+    user_id = data.get('uid') or request.remote_addr
     user_last_active[user_id] = time.time()
     return jsonify({'status': 'ok'})
 
