@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员审核 - 论文搜索系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #3b82f6;
+            --background-color: #f8fafc;
+            --card-background: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+
+        .navbar {
+            background-color: var(--primary-color);
+            padding: 1rem 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .admin-container {
+            background-color: var(--card-background);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .admin-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .paper-card {
+            background-color: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .paper-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .paper-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .paper-meta {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .paper-abstract {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .review-actions {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .btn-review {
+            padding: 0.5rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-approve {
+            background-color: #10b981;
+            color: white;
+            border: none;
+        }
+
+        .btn-approve:hover {
+            background-color: #059669;
+        }
+
+        .btn-reject {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+        }
+
+        .btn-reject:hover {
+            background-color: #dc2626;
+        }
+
+        .review-comment {
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .review-comment textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            resize: vertical;
+        }
+
+        .alert {
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .no-papers {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 3rem;
+            font-size: 1.1rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .loading .spinner-border {
+            width: 3rem;
+            height: 3rem;
+            color: var(--primary-color);
+        }
+
+        /* Tab美化 */
+        .nav-tabs .nav-link {
+            border-radius: 20px 20px 0 0 !important;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #2563eb;
+            background: #f4f8ff;
+            margin-right: 8px;
+            transition: background 0.2s, color 0.2s;
+            border: none;
+        }
+        .nav-tabs .nav-link.active {
+            background: #2563eb !important;
+            color: #fff !important;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.08);
+        }
+        .nav-tabs {
+            border-bottom: none;
+            margin-bottom: 1.5rem;
+            justify-content: center;
+        }
+        .tab-content {
+            background: #fff;
+            border-radius: 0 0 16px 16px;
+            box-shadow: 0 2px 8px rgba(37,99,235,0.04);
+            padding: 2rem 1.5rem;
+            min-height: 300px;
+        }
+        .no-papers {
+            text-align: center;
+            color: #64748b;
+            padding: 3rem 0;
+            font-size: 1.15rem;
+        }
+        .no-papers i {
+            color: #2563eb;
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar" style="margin-bottom:2rem;">
+        <div class="container" style="max-width:1200px;">
+            <a href="/" class="navbar-brand">论文搜索系统</a>
+            <div class="nav-links">
+                <a href="/" class="nav-link">搜索</a>
+                <a href="/upload" class="nav-link">上传论文</a>
+                <a href="/admin" class="nav-link">查看审核状态</a>
+                <a href="/admin/review" class="nav-link active">管理员审核</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="admin-container">
+            <h1 class="admin-title">管理员审核</h1>
+            <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; justify-content: center;">
+                <input id="searchInput" class="form-control" style="max-width:350px;" placeholder="搜索标题、作者、状态、摘要、期刊、DOI..." onkeydown="if(event.key==='Enter'){searchAllTabs();}">
+                <button class="btn btn-primary" onclick="searchAllTabs()">搜索</button>
+            </div>
+            <!-- 添加标签页切换 -->
+            <ul class="nav nav-tabs mb-4" id="paperTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">待审核论文</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="reviewed-tab" data-bs-toggle="tab" data-bs-target="#reviewed" type="button" role="tab">已审核论文</button>
+                </li>
+            </ul>
+
+            <!-- 标签页内容 -->
+            <div class="tab-content" id="paperTabsContent">
+                <!-- 待审核论文 -->
+                <div class="tab-pane fade show active" id="pending" role="tabpanel">
+                    <div id="pendingPapersList">
+                        <div class="loading">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">加载中...</span>
+                            </div>
+                            <p class="mt-2">正在加载待审核论文...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 已审核论文 -->
+                <div class="tab-pane fade" id="reviewed" role="tabpanel">
+                    <div id="reviewedPapersList">
+                        <div class="loading">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">加载中...</span>
+                            </div>
+                            <p class="mt-2">正在加载已审核论文...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 加载待审核论文列表
+        async function loadPendingPapers() {
+            try {
+                const response = await fetch('/admin/pending_papers');
+                const papers = await response.json();
+                const papersList = document.getElementById('pendingPapersList');
+
+                if (papers.error) {
+                    papersList.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle"></i> ${papers.error}
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (papers.length === 0) {
+                    papersList.innerHTML = `
+                        <div class="no-papers">
+                            <i class="fas fa-check-circle fa-3x mb-3"></i>
+                            <p>当前没有待审核的论文</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                papersList.innerHTML = papers.map((paper, index) => `
+                    <div class="paper-card" id="paper-${paper.id}">
+                        <h3 class="paper-title">${paper.title}</h3>
+                        <div class="paper-meta">
+                            <p><strong>作者：</strong>${paper.authors}</p>
+                            <p><strong>年份：</strong>${paper.year}</p>
+                            <p><strong>期刊/会议：</strong>${paper.journal}</p>
+                            <p><strong>提交者：</strong>${paper.submitted_by}</p>
+                            <p><strong>提交时间：</strong>${new Date(paper.submitted_at).toLocaleString()}</p>
+                            <p><strong>状态：</strong><span class="badge bg-warning">待审核</span></p>
+                        </div>
+                        <div class="paper-abstract">
+                            <strong>摘要：</strong>
+                            <p>${paper.abstract}</p>
+                        </div>
+                        <div class="review-actions">
+                            <button class="btn btn-review btn-approve" onclick="reviewPaper(${paper.id}, 'approve')">
+                                <i class="fas fa-check"></i> 通过
+                            </button>
+                            <button class="btn btn-review btn-reject" onclick="reviewPaper(${paper.id}, 'reject')">
+                                <i class="fas fa-times"></i> 拒绝
+                            </button>
+                        </div>
+                        <div class="review-comment" id="comment-${paper.id}">
+                            <textarea class="form-control" placeholder="请输入审核意见（选填）"></textarea>
+                            <button class="btn btn-primary" onclick="submitReview(${paper.id})">提交审核</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                document.getElementById('pendingPapersList').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i> 加载失败，请刷新页面重试
+                    </div>
+                `;
+            }
+        }
+
+        let reviewedCurrentPage = 1;
+        const reviewedPageSize = 10;
+
+        // 加载已审核论文列表
+        async function loadReviewedPapers() {
+            try {
+                const response = await fetch('/admin/reviewed_papers');
+                const papers = await response.json();
+                window.reviewedPapers = papers;
+                reviewedCurrentPage = 1;
+                renderReviewedPapersPage(window.reviewedPapers, reviewedCurrentPage, reviewedPageSize);
+            } catch (error) {
+                document.getElementById('reviewedPapersList').innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> 加载失败，请刷新页面重试</div>`;
+            }
+        }
+
+        function renderReviewedPapersPage(papers, page, pageSize) {
+            const start = (page - 1) * pageSize;
+            const end = start + pageSize;
+            const pagePapers = papers.slice(start, end);
+            const papersList = document.getElementById('reviewedPapersList');
+            if (!pagePapers.length) {
+                papersList.innerHTML = `<div class="no-papers"><i class="fas fa-check-circle fa-3x mb-3"></i><p>暂无已审核的论文</p></div>`;
+                return;
+            }
+            papersList.innerHTML = pagePapers.map((paper, index) => `
+                <div class="paper-card" id="paper-${paper.id}">
+                    <h3 class="paper-title">${paper.title}</h3>
+                    <div class="paper-meta">
+                        <p><strong>作者：</strong>${paper.authors}</p>
+                        <p><strong>年份：</strong>${paper.year}</p>
+                        <p><strong>期刊/会议：</strong>${paper.journal}</p>
+                        <p><strong>提交者：</strong>${paper.submitted_by}</p>
+                        <p><strong>提交时间：</strong>${new Date(paper.submitted_at).toLocaleString()}</p>
+                        <p><strong>状态：</strong>
+                            <span class="badge ${(paper.status === 'approved' || paper.status === 'approve') ? 'bg-success' : 'bg-danger'}">
+                                ${(paper.status === 'approved' || paper.status === 'approve') ? '已通过' : '已拒绝'}
+                            </span>
+                        </p>
+                        <p><strong>审核意见：</strong>${paper.review_comment || '无'}</p>
+                        <p><strong>审核时间：</strong>${paper.reviewed_at ? new Date(paper.reviewed_at).toLocaleString() : '无'}</p>
+                    </div>
+                    <div class="paper-abstract">
+                        <strong>摘要：</strong>
+                        <p>${paper.abstract}</p>
+                    </div>
+                    <div style="margin-top:1rem;">
+                        <button class="btn btn-warning btn-sm" onclick="showEditPaperForm(${paper.id})">修改</button>
+                        <button class="btn btn-danger btn-sm" onclick="deletePaper(${paper.id})">删除</button>
+                        <div id="edit-form-${paper.id}" style="display:none;margin-top:1rem;"></div>
+                    </div>
+                </div>
+            `).join('');
+
+            // 分页控件
+            const totalPages = Math.ceil(papers.length / pageSize);
+            papersList.innerHTML += getPaginationHtml(totalPages, page);
+        }
+
+        function getPaginationHtml(totalPages, currentPage) {
+            let html = `<nav aria-label="Page navigation"><ul class="pagination justify-content-center">`;
+            // 显示第一页
+            if (currentPage > 3) {
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="gotoReviewedPage(1);return false;">1</a></li>`;
+                if (currentPage > 4) html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+            // 显示当前页前后2页
+            for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+                html += `<li class="page-item${i === currentPage ? ' active' : ''}"><a class="page-link" href="#" onclick="gotoReviewedPage(${i});return false;">${i}</a></li>`;
+            }
+            // 显示最后一页
+            if (currentPage < totalPages - 2) {
+                if (currentPage < totalPages - 3) html += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                html += `<li class="page-item"><a class="page-link" href="#" onclick="gotoReviewedPage(${totalPages});return false;">${totalPages}</a></li>`;
+            }
+            html += `</ul></nav>`;
+            return html;
+        }
+
+        function gotoReviewedPage(page) {
+            reviewedCurrentPage = page;
+            renderReviewedPapersPage(window.reviewedPapers, reviewedCurrentPage, reviewedPageSize);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 页面加载时获取论文列表
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPendingPapers();
+            loadReviewedPapers();
+        });
+
+        // 标签页切换时刷新对应列表
+        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', (e) => {
+                if (e.target.id === 'pending-tab') {
+                    loadPendingPapers();
+                } else if (e.target.id === 'reviewed-tab') {
+                    loadReviewedPapers();
+                }
+            });
+        });
+
+        // 审核相关函数
+        function reviewPaper(paperId, action) {
+            const commentDiv = document.getElementById(`comment-${paperId}`);
+            commentDiv.style.display = 'block';
+            commentDiv.dataset.action = action;
+        }
+
+        async function submitReview(paperId) {
+            const commentDiv = document.getElementById(`comment-${paperId}`);
+            const action = commentDiv.dataset.action;
+            const comment = commentDiv.querySelector('textarea').value;
+
+            try {
+                const response = await fetch('/admin/review_paper', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        paper_id: paperId,
+                        action: action,
+                        comment: comment
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.error) {
+                    alert(result.error);
+                    return;
+                }
+
+                // 刷新两个列表
+                loadPendingPapers();
+                loadReviewedPapers();
+                
+                // 隐藏评论框
+                commentDiv.style.display = 'none';
+                commentDiv.querySelector('textarea').value = '';
+                
+            } catch (error) {
+                alert('审核提交失败，请重试');
+            }
+        }
+
+        function deletePaper(paperId) {
+            if (!confirm('确定要删除这篇论文吗？')) return;
+            fetch('/admin/delete_paper', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({paper_id: paperId})
+            }).then(res => res.json())
+              .then(data => {
+                  alert(data.message);
+                  loadReviewedPapers();
+              });
+        }
+
+        function showEditPaperForm(paperId) {
+            const paper = window.reviewedPapers.find(p => p.id === paperId);
+            const formDiv = document.getElementById('edit-form-' + paperId);
+            formDiv.innerHTML = `
+                <div class="card card-body mb-2">
+                    <div class="mb-2"><input class="form-control" id="edit-title-${paperId}" value="${paper.title}"></div>
+                    <div class="mb-2"><input class="form-control" id="edit-authors-${paperId}" value="${paper.authors}"></div>
+                    <div class="mb-2"><input class="form-control" id="edit-abstract-${paperId}" value="${paper.abstract}"></div>
+                    <div class="mb-2"><input class="form-control" id="edit-year-${paperId}" value="${paper.year}"></div>
+                    <div class="mb-2"><input class="form-control" id="edit-journal-${paperId}" value="${paper.journal}"></div>
+                    <div class="mb-2"><input class="form-control" id="edit-doi-${paperId}" value="${paper.doi}"></div>
+                    <button class="btn btn-success btn-sm" onclick="submitEditPaper(${paperId})">保存修改</button>
+                    <button class="btn btn-secondary btn-sm" onclick="hideEditPaperForm(${paperId})">取消</button>
+                </div>
+            `;
+            formDiv.style.display = 'block';
+        }
+
+        function hideEditPaperForm(paperId) {
+            document.getElementById('edit-form-' + paperId).style.display = 'none';
+        }
+
+        function submitEditPaper(paperId) {
+            fetch('/admin/update_paper', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    paper_id: paperId,
+                    title: document.getElementById('edit-title-' + paperId).value,
+                    authors: document.getElementById('edit-authors-' + paperId).value,
+                    abstract: document.getElementById('edit-abstract-' + paperId).value,
+                    year: document.getElementById('edit-year-' + paperId).value,
+                    journal: document.getElementById('edit-journal-' + paperId).value,
+                    doi: document.getElementById('edit-doi-' + paperId).value
+                })
+            }).then(res => res.json())
+              .then(data => {
+                  alert(data.message);
+                  hideEditPaperForm(paperId);
+                  loadReviewedPapers();
+              });
+        }
+
+        // 搜索功能
+        function searchAllTabs() {
+            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
+            // 待审核tab
+            if (document.getElementById('pending').classList.contains('active')) {
+                filterPapers('pendingPapersList', window.pendingPapers, keyword);
+            } else {
+                filterPapers('reviewedPapersList', window.reviewedPapers, keyword);
+            }
+        }
+        function filterPapers(listId, papers, keyword) {
+            const list = document.getElementById(listId);
+            if (!papers) return;
+            const filtered = papers.filter(paper => {
+                return (
+                    (paper.title && paper.title.toLowerCase().includes(keyword)) ||
+                    (paper.authors && paper.authors.toLowerCase().includes(keyword)) ||
+                    (paper.status && paper.status.toLowerCase().includes(keyword)) ||
+                    (paper.abstract && paper.abstract.toLowerCase().includes(keyword)) ||
+                    (paper.journal && paper.journal.toLowerCase().includes(keyword)) ||
+                    (paper.doi && paper.doi.toLowerCase().includes(keyword))
+                );
+            });
+            list.innerHTML = filtered.map((paper, index) => `
+                <div class="paper-card" id="paper-${paper.id}">
+                    <h3 class="paper-title">${paper.title}</h3>
+                    <div class="paper-meta">
+                        <p><strong>作者：</strong>${paper.authors}</p>
+                        <p><strong>年份：</strong>${paper.year}</p>
+                        <p><strong>期刊/会议：</strong>${paper.journal}</p>
+                        <p><strong>提交者：</strong>${paper.submitted_by}</p>
+                        <p><strong>提交时间：</strong>${new Date(paper.submitted_at).toLocaleString()}</p>
+                        ${listId === 'pendingPapersList'
+                            ? `<p><strong>状态：</strong><span class="badge bg-warning">待审核</span></p>`
+                            : `<p><strong>状态：</strong>
+                                <span class="badge ${(paper.status === 'approved' || paper.status === 'approve') ? 'bg-success' : 'bg-danger'}">
+                                    ${(paper.status === 'approved' || paper.status === 'approve') ? '已通过' : '已拒绝'}
+                                </span>
+                            </p>
+                            <p><strong>审核意见：</strong>${paper.review_comment || '无'}</p>
+                            <p><strong>审核时间：</strong>${paper.reviewed_at ? new Date(paper.reviewed_at).toLocaleString() : '无'}</p>`
+                        }
+                    </div>
+                    <div class="paper-abstract">
+                        <strong>摘要：</strong>
+                        <p>${paper.abstract}</p>
+                    </div>
+                    ${listId === 'pendingPapersList'
+                        ? `<div class="review-actions">
+                                <button class="btn btn-review btn-approve" onclick="reviewPaper(${paper.id}, 'approve')">
+                                    <i class="fas fa-check"></i> 通过
+                                </button>
+                                <button class="btn btn-review btn-reject" onclick="reviewPaper(${paper.id}, 'reject')">
+                                    <i class="fas fa-times"></i> 拒绝
+                                </button>
+                            </div>
+                            <div class="review-comment" id="comment-${paper.id}">
+                                <textarea class="form-control" placeholder="请输入审核意见（选填）"></textarea>
+                                <button class="btn btn-primary" onclick="submitReview(${paper.id})">提交审核</button>
+                            </div>`
+                        : `<div style="margin-top:1rem;">
+                                <button class="btn btn-warning btn-sm" onclick="showEditPaperForm(${paper.id})">修改</button>
+                                <button class="btn btn-danger btn-sm" onclick="deletePaper(${paper.id})">删除</button>
+                                <div id="edit-form-${paper.id}" style="display:none;margin-top:1rem;"></div>
+                            </div>`
+                    }
+                </div>
+            `).join('');
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

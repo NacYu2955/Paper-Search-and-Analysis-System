@@ -531,14 +531,81 @@
             font-size: 1.1rem;
             margin: 10px 0 20px 0;
         }
+        /* 进度条样式 */
+        .progress-bar-container {
+            width: 100%;
+            background: #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 0 auto;
+            max-width: 400px;
+            height: 18px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+            transition: width 0.4s cubic-bezier(.4,0,.2,1);
+        }
+        .progress-bar-label {
+            text-align: center;
+            color: #2563eb;
+            font-weight: 600;
+            margin-top: 8px;
+            font-size: 1.05rem;
+        }
+        .navbar {
+            background-color: var(--primary-color);
+            padding: 1rem 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .navbar-brand {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+        .nav-link {
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+        .nav-link:hover {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
     </style>
 </head>
 <body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container" style="display: flex; align-items: center; justify-content: space-between; max-width: 1200px;">
+            <a href="/" class="navbar-brand">论文搜索系统</a>
+            <div style="display: flex; align-items: center;">
+                <div class="nav-links" style="display: flex; gap: 1.5rem;">
+                    <a href="/" class="nav-link">搜索</a>
+                    <a href="/upload" class="nav-link">上传论文</a>
+                    <a href="/admin" class="nav-link">查看审核状态</a>
+                </div>
+                <span id="online-users" style="color:#2563eb;font-weight:500;font-size:0.98rem;background:rgba(240,247,255,0.8);padding:3px 12px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.03);margin-left:24px;">活跃人数: --</span>
+            </div>
+        </div>
+    </nav>
+    
     <div class="container">
         <div class="search-container">
-            <div style="position: absolute; top: 24px; right: 40px; z-index: 10;">
-                <span id="online-users" style="color:#2563eb;font-weight:500;font-size:0.98rem;background:rgba(240,247,255,0.8);padding:3px 12px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.03);">活跃人数: --</span>
-            </div>
             <h1 class="search-title">论文搜索系统</h1>
             <div class="search-input-container">
                 <!-- 开关按钮 -->
@@ -580,23 +647,23 @@
                         <button class="query-btn" data-level="3">具体</button>
                     </div>
                     <div id="level-loading-1" class="level-loading" style="display:none;color:#0d6efd;text-align:center;">
-                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        正在查询中...
+                        <div class="progress-bar-container"><div class="progress-bar" id="progress-bar-1" style="width: 40%"></div></div>
+                        <div class="progress-bar-label">正在查询中...</div>
                     </div>
                     <div id="level-loading-2" class="level-loading" style="display:none;color:#0d6efd;text-align:center;">
-                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        正在查询中...
+                        <div class="progress-bar-container"><div class="progress-bar" id="progress-bar-2" style="width: 60%"></div></div>
+                        <div class="progress-bar-label">正在查询中...</div>
                     </div>
                     <div id="level-loading-3" class="level-loading" style="display:none;color:#0d6efd;text-align:center;">
-                        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                        正在查询中...
+                        <div class="progress-bar-container"><div class="progress-bar" id="progress-bar-3" style="width: 80%"></div></div>
+                        <div class="progress-bar-label">正在查询中...</div>
                     </div>
                 </div>
             </div>
             <!-- 全局loading容器，原文查询时用 -->
             <div id="global-loading" style="display:none;color:#0d6efd;text-align:center;margin-top:24px;">
-                <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                正在查询中...
+                <div class="progress-bar-container"><div class="progress-bar" id="progress-bar-global" style="width: 50%"></div></div>
+                <div class="progress-bar-label">正在查询中...</div>
             </div>
             <div id="results">
                 <!-- 结果将在这里动态显示 -->
@@ -604,6 +671,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
         let currentQueryLevel = 2; // 默认使用第二个等级（适中）
         let cachedResults = null;  // 用于缓存搜索结果
@@ -618,6 +686,12 @@
             localStorage.setItem('my_uid', Math.random().toString(36).substr(2, 10) + Date.now());
         }
         const my_uid = localStorage.getItem('my_uid');
+
+        // WebSocket 实时活跃人数
+        const socket = io({ query: { uid: my_uid } });
+        socket.on('online_users', function(data) {
+            document.getElementById('online-users').innerText = '活跃人数: ' + data.online_users;
+        });
 
         // 开关按钮逻辑
         document.addEventListener('DOMContentLoaded', function() {
@@ -688,6 +762,26 @@
             }
         }
 
+        // 进度条动画辅助函数
+        function animateProgressBar(id, from, to, duration = 10000, mode = 'original') {
+            const bar = document.getElementById(id);
+            if (!bar) return;
+            bar.style.width = from + '%';
+            setTimeout(() => {
+                bar.style.transition = `width 10000ms cubic-bezier(.4,0,.2,1)`;
+                bar.style.width = '80%';
+                // 10秒后再补最后一段
+                setTimeout(() => {
+                    if (mode === 'multi-level') {
+                        bar.style.transition = 'width 5000ms cubic-bezier(.4,0,.2,1)';
+                    } else {
+                        bar.style.transition = 'width 1000ms cubic-bezier(.4,0,.2,1)';
+                    }
+                    bar.style.width = '100%';
+                }, 10000);
+            }, 30);
+        }
+
         async function searchPapers(event) {
             if (event) event.preventDefault();
             const searchInput = document.getElementById('searchInput');
@@ -703,7 +797,10 @@
                 document.getElementById('global-loading').style.display = 'none';
                 [1,2,3].forEach(lv=>{
                     const loadingDiv = document.getElementById('level-loading-'+lv);
-                    if (loadingDiv) loadingDiv.style.display = (lv === currentQueryLevel) ? 'block' : 'none';
+                    if (loadingDiv) {
+                        loadingDiv.style.display = (lv === currentQueryLevel) ? 'block' : 'none';
+                        if (lv === currentQueryLevel) animateProgressBar('progress-bar-'+lv, 10, 80, 10000, mode);
+                    }
                 });
                 document.getElementById('results').innerHTML = '';
                 cachedResults = { success: true, results: {}, queries: [], selected_level: 2 };
@@ -764,6 +861,7 @@
             }
             // 原文查询逻辑
             document.getElementById('global-loading').style.display = 'block';
+            animateProgressBar('progress-bar-global', 10, 80, 10000, mode);
             document.getElementById('results').innerHTML = '';
             [1,2,3].forEach(lv=>{
                 const loadingDiv = document.getElementById('level-loading-'+lv);
@@ -1072,26 +1170,6 @@
                 icon.textContent = '▼';
             }
         }
-
-        // 定时发送心跳，带上唯一ID
-        setInterval(() => {
-            fetch('/heartbeat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid: my_uid })
-            });
-        }, 5000);
-
-        // 定时获取在线人数
-        function updateOnlineUsers() {
-            fetch('/online_users')
-                .then(res => res.json())
-                .then(data => {
-                    document.getElementById('online-users').innerText = '活跃人数: ' + data.online_users;
-                });
-        }
-        setInterval(updateOnlineUsers, 5000); // 5秒刷新一次
-        updateOnlineUsers(); // 页面加载时先获取一次
     </script>
 </body>
 </html>
