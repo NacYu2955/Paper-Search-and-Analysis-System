@@ -1,6 +1,10 @@
-torch
-transformers
+flask
+flask-socketio
+eventlet
+jinja2
+bibtexparser
 sentence-transformers
-numpy
+torch
 scikit-learn
+numpy
 openai
