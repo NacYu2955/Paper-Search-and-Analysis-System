@@ -3,12 +3,19 @@ from paper_search import PaperSearch
 import os
 import logging
 import time
+from flask_socketio import SocketIO, emit
+import threading
+import sqlite3
+import bibtexparser
+from bibtexparser.bparser import BibTexParser
+from bibtexparser.customization import convert_to_unicode
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # 初始化PaperSearch
 model_path = './all-MiniLM-L6-v2'
@@ -17,6 +24,32 @@ selector_path = "checkpoints/pasa-7b-selector"
 # 全局变量存储PaperSearch实例
 searcher = None
 user_last_active = {}  # 存储用户最后活跃时间
+online_users = set()
+user_lock = threading.Lock()
+
+def get_db():
+    conn = sqlite3.connect('papers.db')
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    with get_db() as db:
+        db.execute('''CREATE TABLE IF NOT EXISTS papers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            authors TEXT NOT NULL,
+            abstract TEXT NOT NULL,
+            year INTEGER NOT NULL,
+            journal TEXT NOT NULL,
+            doi TEXT,
+            status TEXT NOT NULL DEFAULT 'pending',
+            submitter TEXT,
+            review_comment TEXT,
+            reviewed_by TEXT,
+            submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            reviewed_at TIMESTAMP
+        )''')
+init_db()
 
 def init_searcher():
     global searcher
@@ -40,6 +73,20 @@ except Exception as e:
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@socketio.on('connect')
+def handle_connect():
+    user_id = request.args.get('uid') or request.remote_addr
+    with user_lock:
+        online_users.add(user_id)
+    emit('online_users', {'online_users': len(online_users)}, broadcast=True)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    user_id = request.args.get('uid') or request.remote_addr
+    with user_lock:
+        online_users.discard(user_id)
+    emit('online_users', {'online_users': len(online_users)}, broadcast=True)
 
 @app.route('/search', methods=['POST'])
 def search():
@@ -150,23 +197,140 @@ def search_papers():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@app.route('/heartbeat', methods=['POST'])
-def heartbeat():
-    data = request.get_json(silent=True) or {}
-    user_id = data.get('uid') or request.remote_addr
-    user_last_active[user_id] = time.time()
-    return jsonify({'status': 'ok'})
+@app.route('/upload')
+def upload():
+    return render_template('upload.html')
 
-@app.route('/online_users')
-def online_users():
-    now = time.time()
-    count = sum(1 for t in user_last_active.values() if now - t <= 10)
-    return jsonify({'online_users': count})
+@app.route('/admin')
+def admin():
+    return render_template('admin.html')
+
+@app.route('/admin/review')
+def admin_review():
+    return render_template('admin_review.html')
+
+@app.route('/submit_paper', methods=['POST'])
+def submit_paper():
+    try:
+        data = request.get_json()
+        bibtex_text = data.get('bibtex')
+        abstract = data.get('abstract')
+
+        if not bibtex_text or not abstract:
+            return jsonify({'error': '请提供BibTeX格式和摘要'}), 400
+
+        # 解析BibTeX
+        parser = BibTexParser()
+        parser.customization = convert_to_unicode
+        bib_database = bibtexparser.loads(bibtex_text, parser=parser)
+
+        if not bib_database.entries:
+            return jsonify({'error': '无法解析BibTeX格式'}), 400
+
+        entry = bib_database.entries[0]  # 获取第一个条目
+
+        # 提取必要字段
+        title = entry.get('title', '').strip('{}')
+        authors = entry.get('author', '').strip('{}')
+        year = entry.get('year', '')
+        journal = entry.get('journal', '')
+        if not journal:
+            journal = entry.get('booktitle', '')  # 如果是会议论文，使用booktitle
+
+        # 可选字段
+        booktitle = entry.get('booktitle', '')
+        organization = entry.get('organization', '')
+        volume = entry.get('volume', '')
+        number = entry.get('number', '')
+        pages = entry.get('pages', '')
+        publisher = entry.get('publisher', '')
+
+        # 验证必要字段
+        if not all([title, authors, year]):
+            return jsonify({'error': 'BibTeX格式缺少必要字段（标题、作者、年份）'}), 400
+
+        db = get_db()
+        db.execute('''
+            INSERT INTO papers (
+                title, authors, abstract, year, journal, status,
+                booktitle, organization, volume, number, pages, publisher
+            ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
+        ''', (
+            title,
+            authors,
+            abstract,
+            int(year),
+            journal,
+            booktitle,
+            organization,
+            volume,
+            number,
+            pages,
+            publisher
+        ))
+        db.commit()
+
+        return jsonify({'message': '论文提交成功！'}), 200
+
+    except Exception as e:
+        return jsonify({'error': f'提交失败：{str(e)}'}), 500
+
+@app.route('/my_papers', methods=['GET'])
+def my_papers():
+    uid = request.args.get('uid', '匿名')
+    db = get_db()
+    papers = db.execute('SELECT * FROM papers WHERE submitter=? ORDER BY submitted_at DESC', (uid,)).fetchall()
+    return jsonify([dict(row) for row in papers])
+
+@app.route('/admin/pending_papers')
+def admin_pending_papers():
+    db = get_db()
+    papers = db.execute('SELECT * FROM papers WHERE status=? ORDER BY submitted_at DESC', ('pending',)).fetchall()
+    return jsonify([dict(row) for row in papers])
+
+@app.route('/admin/review_paper', methods=['POST'])
+def admin_review_paper():
+    data = request.get_json()
+    db = get_db()
+    db.execute('''
+        UPDATE papers SET status=?, review_comment=?, reviewed_by=?, reviewed_at=CURRENT_TIMESTAMP
+        WHERE id=?
+    ''', (data['action'], data.get('comment', ''), data.get('reviewed_by', 'admin'), data['paper_id']))
+    db.commit()
+    return jsonify({'message': '审核完成'})
+
+@app.route('/admin/reviewed_papers')
+def admin_reviewed_papers():
+    db = get_db()
+    papers = db.execute("SELECT * FROM papers WHERE status IN ('approved', 'approve', 'rejected', 'reject') ORDER BY reviewed_at DESC").fetchall()
+    return jsonify([dict(row) for row in papers])
+
+@app.route('/admin/delete_paper', methods=['POST'])
+def admin_delete_paper():
+    data = request.get_json()
+    db = get_db()
+    db.execute('DELETE FROM papers WHERE id=?', (data['paper_id'],))
+    db.commit()
+    return jsonify({'message': '删除成功'})
+
+@app.route('/admin/update_paper', methods=['POST'])
+def admin_update_paper():
+    data = request.get_json()
+    db = get_db()
+    db.execute('''
+        UPDATE papers SET title=?, authors=?, abstract=?, year=?, journal=?, doi=?
+        WHERE id=?
+    ''', (
+        data['title'], data['authors'], data['abstract'], data['year'],
+        data['journal'], data['doi'], data['paper_id']
+    ))
+    db.commit()
+    return jsonify({'message': '修改成功'})
 
 if __name__ == '__main__':
     try:
         logger.info("正在启动服务器...")
-        app.run(host='0.0.0.0', port=6006, debug=False)
+        socketio.run(app, host='0.0.0.0', port=6006, debug=False)
     except Exception as e:
         logger.error(f"服务器启动失败: {str(e)}")
         raise 

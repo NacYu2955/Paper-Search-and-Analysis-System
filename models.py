@@ -79,68 +79,68 @@ class Agent:
             gc.collect()
     
     def infer_score(self, prompts):
+        prompts = [self.tokenizer.apply_chat_template(
+            [{
+                "content": prompt.strip(),
+                "role": "user"
+            }],
+            tokenize=False,
+            max_length=1024,
+            add_generation_prompt=True
+        ) for prompt in prompts]
+
         if len(prompts) == 0:
             return []
+        encoded_input = self.tokenizer(prompts, return_tensors='pt', padding=True)
+        input_ids = encoded_input.input_ids.cuda(self.model.device)
+        attention_mask = encoded_input.attention_mask.cuda(self.model.device)
+
+        all_probs = []
+        batch_size = 4  
+        
+        for i in range(0, len(prompts), batch_size):
+            # 清理内存
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                gc.collect()
             
-        try:
-            encoded_input = self.tokenizer(
-                prompts, 
-                return_tensors='pt', 
-                padding=True, 
-                truncation=True,
-                max_length=1024
-            )
+            # 获取当前批次
+            batch_input_ids = input_ids[i:i+batch_size]
+            batch_attention_mask = attention_mask[i:i+batch_size]
             
-            all_probs = []
-            batch_size = 4  
-            
-            for i in range(0, len(prompts), batch_size):
-                # 清理内存
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
-                    gc.collect()
-                
-                # 获取当前批次
-                batch_input_ids = encoded_input.input_ids[i:i+batch_size].to(self.model.device)
-                batch_attention_mask = encoded_input.attention_mask[i:i+batch_size].to(self.model.device)
-                
-                with torch.inference_mode():
-                    try:
-                        outputs = self.model.generate(
-                            input_ids=batch_input_ids,
-                            attention_mask=batch_attention_mask,
-                            max_new_tokens=1,
-                            output_scores=True,
-                            return_dict_in_generate=True,
-                            do_sample=False,
-                            pad_token_id=self.tokenizer.pad_token_id,
-                            eos_token_id=self.tokenizer.eos_token_id
-                        )
-                        
-                        # 获取True token的概率
-                        true_token_id = self.tokenizer.convert_tokens_to_ids('True')
-                        if true_token_id >= outputs.scores[0].size(1):
-                            # 如果True token id超出范围，返回0概率
-                            batch_probs = [0.0] * batch_input_ids.size(0)
-                        else:
-                            batch_probs = outputs.scores[0].softmax(dim=-1)[:, true_token_id].cpu().numpy().tolist()
-                            
-                        all_probs.extend(batch_probs)
-                        
-                    except Exception as e:
-                        print(f"Error in batch {i}: {str(e)}")
-                        all_probs.extend([0.0] * batch_input_ids.size(0))
+            with torch.inference_mode():
+                try:
+                    outputs = self.model.generate(
+                        input_ids=batch_input_ids,
+                        attention_mask=batch_attention_mask,
+                        max_new_tokens=1,
+                        output_scores=True,
+                        return_dict_in_generate=True,
+                        do_sample=False,
+                        pad_token_id=self.tokenizer.pad_token_id,
+                        eos_token_id=self.tokenizer.eos_token_id
+                    )
                     
-                    # 立即清理当前批次的内存
-                    del batch_input_ids, batch_attention_mask
-                    if 'outputs' in locals():
-                        del outputs
+                    # 获取True token的概率
+                    true_token_id = self.tokenizer.convert_tokens_to_ids('True')
+                    if true_token_id >= outputs.scores[0].size(1):
+                        # 如果True token id超出范围，返回0概率
+                        batch_probs = [0.0] * batch_input_ids.size(0)
+                    else:
+                        batch_probs = outputs.scores[0].softmax(dim=-1)[:, true_token_id].cpu().numpy().tolist()
+                        
+                    all_probs.extend(batch_probs)
                     
-            return all_probs
-            
-        except Exception as e:
-            print(f"Error in infer_score: {str(e)}")
-            return [0.0] * len(prompts)
+                except Exception as e:
+                    print(f"Error in batch {i}: {str(e)}")
+                    all_probs.extend([0.0] * batch_input_ids.size(0))
+                
+                # 立即清理当前批次的内存
+                del batch_input_ids, batch_attention_mask
+                if 'outputs' in locals():
+                    del outputs
+                
+        return all_probs
 
     def infer(self, prompt, sample=False):
         try:
@@ -166,7 +166,7 @@ class Agent:
             
             with torch.inference_mode():
                 generation_config = {
-                    "max_new_tokens": 512,
+                    "max_new_tokens": 1024,
                     "num_beams": 1,
                     "pad_token_id": self.tokenizer.pad_token_id,
                     "eos_token_id": self.tokenizer.eos_token_id,
@@ -236,12 +236,12 @@ class Agent:
                         return_tensors="pt",
                         truncation=True,
                         padding=True,
-                        max_length=256
+                        max_length=1024
                     ).to(self.model.device)
                     
                     with torch.inference_mode():
                         generation_config = {
-                            "max_new_tokens": 512,
+                            "max_new_tokens": 1024,  
                             "num_beams": 1,
                             "pad_token_id": self.tokenizer.pad_token_id,
                             "eos_token_id": self.tokenizer.eos_token_id,

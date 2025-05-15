@@ -6,6 +6,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import torch
 from models import Agent
 from openai import OpenAI
+import sqlite3
 
 # 设置环境变量以优化内存使用
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
@@ -37,7 +38,7 @@ class PaperSearch:
             
             # 初始化DeepSeek客户端
             self.deepseek_client = OpenAI(
-                api_key="your deepseek key",
+                api_key="sk-0ab105e607314279b67232d2de420d55",
                 base_url="https://api.deepseek.com/v1"
             )
             
@@ -49,32 +50,29 @@ class PaperSearch:
         self.embeddings = None
         
     def load_papers(self):
-        """加载papers.jsonl数据库"""
+        """从papers.db数据库加载论文"""
         try:
-            if not os.path.exists("papers.jsonl"):
-                raise FileNotFoundError("找不到papers.jsonl文件")
-                
-            with open("papers.jsonl", "r", encoding="utf-8") as f:
-                for line in f:
-                    try:
-                        paper = json.loads(line)
-                        self.papers.append(paper)
-                    except json.JSONDecodeError:
-                        print(f"警告: 跳过无效的JSON行")
-                        continue
-                    
+            if not os.path.exists("papers.db"):
+                raise FileNotFoundError("找不到papers.db文件")
+            conn = sqlite3.connect("papers.db")
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM papers")
+            rows = cursor.fetchall()
+            self.papers = []
+            for row in rows:
+                paper = dict(row)
+                self.papers.append(paper)
+            conn.close()
+
             if not self.papers:
-                raise ValueError("papers.jsonl文件为空")
-                
+                raise ValueError("papers.db数据库为空")
             # 生成论文的文本表示
             texts = [f"{paper['title']} {paper['abstract']}" for paper in self.papers]
-            
             # 计算embeddings
             print("正在计算论文向量...")
-            self.embeddings = self.model.encode(texts, show_progress_bar=True,
-                                              batch_size=32)  # 直接获取numpy数组
+            self.embeddings = self.model.encode(texts, show_progress_bar=True, batch_size=32)
             print(f"完成向量计算,共 {len(self.papers)} 篇论文")
-            
         except Exception as e:
             print(f"加载论文数据失败: {str(e)}")
             raise
@@ -96,7 +94,7 @@ class PaperSearch:
 待引用论文：
 标题：{selected_paper['title']}
 摘要：{selected_paper.get('abstract', '无摘要')}
-作者：{', '.join(selected_paper.get('authors', ['未知']))}
+作者：{selected_paper.get('authors', ['未知'])}
 年份：{selected_paper.get('year', '未知')}
 
 请按照以下格式输出：
@@ -126,7 +124,7 @@ Citation Suggestion:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
 
-    def batch_process_selector(self, results, user_query, batch_size=5):
+    def batch_process_selector(self, results, user_query, batch_size=25):
         """分批处理selector评分"""
         scores = []
         for i in range(0, len(results), batch_size):
@@ -151,7 +149,7 @@ Citation Suggestion:
 
     def generate_bibtex(self, paper):
         """
-        生成论文的BibTeX格式
+        生成论文的BibTeX格式，空字段不输出
         """
         try:
             # 获取引用key
@@ -172,40 +170,57 @@ Citation Suggestion:
                 entry_type = 'article'
 
             # 处理作者
-            if 'citations' in paper and paper['citations'] and 'author' in paper['citations'][0]:
-                author_str = paper['citations'][0]['author']
-            elif 'author' in paper:
-                author_str = paper['author']
+            authors = paper.get('authors') or paper.get('author')
+            if authors:
+                if isinstance(authors, list):
+                    author_str = ' and '.join(authors)
+                elif isinstance(authors, str):
+                    author_str = authors
+                else:
+                    author_str = 'Unknown'
             else:
                 author_str = 'Unknown'
 
             # 构建非空字段列表
             fields = []
             fields.append(f"    author = {{{author_str}}}")
-            fields.append(f"    title = {{{paper['title']}}}")
+            if paper.get('title') and str(paper['title']).strip() not in ["", "{}", "None"]:
+                fields.append(f"    title = {{{paper['title']}}}")
 
             # 处理期刊/会议信息
             if entry_type == 'article':
+                journal = ''
                 if 'citations' in paper and paper['citations'] and 'journal' in paper['citations'][0]:
-                    fields.append(f"    journal = {{{paper['citations'][0]['journal']}}}")
+                    journal = paper['citations'][0]['journal']
                 elif 'journal' in paper:
-                    fields.append(f"    journal = {{{paper['journal']}}}")
+                    journal = paper['journal']
+                if journal and str(journal).strip() not in ["", "{}", "None"]:
+                    fields.append(f"    journal = {{{journal}}}")
             elif entry_type == 'inproceedings':
+                booktitle = ''
                 if 'citations' in paper and paper['citations'] and 'booktitle' in paper['citations'][0]:
-                    fields.append(f"    booktitle = {{{paper['citations'][0]['booktitle']}}}")
+                    booktitle = paper['citations'][0]['booktitle']
                 elif 'booktitle' in paper:
-                    fields.append(f"    booktitle = {{{paper['booktitle']}}}")
+                    booktitle = paper['booktitle']
+                if booktitle and str(booktitle).strip() not in ["", "{}", "None"]:
+                    fields.append(f"    booktitle = {{{booktitle}}}")
+                organization = ''
                 if 'citations' in paper and paper['citations'] and 'organization' in paper['citations'][0]:
-                    fields.append(f"    organization = {{{paper['citations'][0]['organization']}}}")
+                    organization = paper['citations'][0]['organization']
                 elif 'organization' in paper:
-                    fields.append(f"    organization = {{{paper['organization']}}}")
+                    organization = paper['organization']
+                if organization and str(organization).strip() not in ["", "{}", "None"]:
+                    fields.append(f"    organization = {{{organization}}}")
 
             # 添加其他字段
             for field in ['volume', 'number', 'pages', 'year', 'publisher']:
+                value = None
                 if 'citations' in paper and paper['citations'] and field in paper['citations'][0]:
-                    fields.append(f"    {field} = {{{paper['citations'][0][field]}}}")
+                    value = paper['citations'][0][field]
                 elif field in paper:
-                    fields.append(f"    {field} = {{{paper[field]}}}")
+                    value = paper[field]
+                if value and str(value).strip() not in ["", "{}", "None"]:
+                    fields.append(f"    {field} = {{{value}}}")
             
             # 生成格式化的BibTeX
             bibtex = "@{}{{{},\n".format(entry_type, entry_key)
@@ -312,7 +327,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
                 paper = result['paper']
                 formatted_result = {
                     'title': paper['title'],
-                    'authors': paper['author'].split(' and ') if paper.get('author') else ['Unknown'],
+                    'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
                     'year': paper.get('year', 'Unknown'),
                     'abstract': paper.get('abstract', 'No abstract available'),
                     'similarity': float(result['similarity']),
@@ -336,9 +351,9 @@ Level 3 (Specific): show me research on [最具体查询]"""
                             seen_titles.add(title)
                             unique_results.append(result)
                     candidate_results = unique_results
-                    filtered_results = [r for r in candidate_results if r['select_score'] > 0.3]
+                    filtered_results = [r for r in candidate_results if r['select_score'] > 0.5]
                     if not filtered_results:
-                        print("没有论文评分大于0.3，返回评分最高的1篇论文")
+                        print("没有论文评分大于0.5，返回评分最高的1篇论文")
                         candidate_results = candidate_results[:1]
                     else:
                         candidate_results = filtered_results
@@ -356,7 +371,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
                 paper = result['paper']
                 formatted_result = {
                     'title': paper['title'],
-                    'authors': paper['author'].split(' and ') if paper.get('author') else ['Unknown'],
+                    'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
                     'year': paper.get('year', 'Unknown'),
                     'abstract': paper.get('abstract', 'No abstract available'),
                     'similarity': float(result['similarity']),
@@ -396,7 +411,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
             paper = result['paper']
             formatted_result = {
                 'title': paper['title'],
-                'authors': paper['author'].split(' and ') if paper.get('author') else ['Unknown'],
+                'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
                 'year': paper.get('year', 'Unknown'),
                 'abstract': paper.get('abstract', 'No abstract available'),
                 'similarity': float(result['similarity']),
@@ -419,9 +434,9 @@ Level 3 (Specific): show me research on [最具体查询]"""
                         seen_titles.add(title)
                         unique_results.append(result)
                 candidate_results = unique_results
-                filtered_results = [r for r in candidate_results if r['select_score'] > 0.3]
+                filtered_results = [r for r in candidate_results if r['select_score'] > 0.5]
                 if not filtered_results:
-                    print(f"没有论文评分大于0.3，返回评分最高的1篇论文")
+                    print(f"没有论文评分大于0.5，返回评分最高的1篇论文")
                     candidate_results = candidate_results[:1]
                 else:
                     candidate_results = filtered_results
@@ -438,7 +453,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
             paper = result['paper']
             formatted_result = {
                 'title': paper['title'],
-                'authors': paper['author'].split(' and ') if paper.get('author') else ['Unknown'],
+                'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
                 'year': paper.get('year', 'Unknown'),
                 'abstract': paper.get('abstract', 'No abstract available'),
                 'similarity': float(result['similarity']),
@@ -487,7 +502,17 @@ Level 3 (Specific): show me research on [最具体查询]"""
             # 构建非空字段列表
             fields = []
             fields.append(f"    title = {{{paper['title']}}}")
-            fields.append(f"    author = {{{' and '.join(paper.get('authors', ['Unknown']))}}}")
+            authors = paper.get('authors') or paper.get('author')
+            if authors:
+                if isinstance(authors, list):
+                    author_str = ' and '.join(authors)
+                elif isinstance(authors, str):
+                    author_str = authors
+                else:
+                    author_str = 'Unknown'
+            else:
+                author_str = 'Unknown'
+            fields.append(f"    author = {{{author_str}}}")
             
             if year:
                 fields.append(f"    year = {{{year}}}")
