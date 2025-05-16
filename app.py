@@ -99,11 +99,8 @@ def search():
         if not query:
             return jsonify({'error': '请输入查询内容'}), 400
             
-        # 生成分级查询
-        queries = searcher.generate_queries(query)
-        
         if mode == 'original':
-            # 只返回原文查询结果
+            # 原文查询模式直接执行，不生成分级查询
             results = searcher.search_papers(query, mode='original')
             return jsonify({
                 'success': True,
@@ -112,7 +109,8 @@ def search():
                 'selected_level': 0
             })
         else:
-            # 返回指定level的结果
+            # 分级查询模式才生成分级查询
+            queries = searcher.generate_queries(query)
             results = searcher.search_papers(query, mode='multi-level', target_level=query_level)
             return jsonify({
                 'success': True,
@@ -244,6 +242,7 @@ def submit_paper():
         number = entry.get('number', '')
         pages = entry.get('pages', '')
         publisher = entry.get('publisher', '')
+        citation_key = entry.get('ID', '')  # BibTeX解析库通常用'ID'字段存key
 
         # 验证必要字段
         if not all([title, authors, year]):
@@ -253,8 +252,8 @@ def submit_paper():
         db.execute('''
             INSERT INTO papers (
                 title, authors, abstract, year, journal, status,
-                booktitle, organization, volume, number, pages, publisher
-            ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?)
+                booktitle, organization, volume, number, pages, publisher, citation_key
+            ) VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)
         ''', (
             title,
             authors,
@@ -266,7 +265,8 @@ def submit_paper():
             volume,
             number,
             pages,
-            publisher
+            publisher,
+            citation_key
         ))
         db.commit()
 
@@ -297,6 +297,10 @@ def admin_review_paper():
         WHERE id=?
     ''', (data['action'], data.get('comment', ''), data.get('reviewed_by', 'admin'), data['paper_id']))
     db.commit()
+    # 审核后重新加载论文数据
+    global searcher
+    if searcher is not None:
+        searcher.load_papers()
     return jsonify({'message': '审核完成'})
 
 @app.route('/admin/reviewed_papers')
@@ -326,6 +330,41 @@ def admin_update_paper():
     ))
     db.commit()
     return jsonify({'message': '修改成功'})
+
+@app.route('/check_spelling', methods=['POST'])
+def check_spelling():
+    try:
+        data = request.get_json()
+        query = data.get('query', '')
+        if not query:
+            return jsonify({'error': '请输入查询内容'}), 400
+            
+        # 使用PaperSearch实例的拼写检查功能
+        corrected_query = searcher.correct_spelling(query)
+        
+        return jsonify({
+            'success': True,
+            'original_query': query,
+            'corrected_query': corrected_query if corrected_query != query else None
+        })
+    except Exception as e:
+        logger.error(f"拼写检查出错: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/check_duplicate', methods=['POST'])
+def admin_check_duplicate():
+    data = request.get_json()
+    title = data.get('title', '').strip().lower()
+    db = get_db()
+    # 查 papers 表
+    result1 = db.execute('SELECT COUNT(*) FROM papers WHERE TRIM(LOWER(title)) = ?', (title,)).fetchone()
+    # 查 paper_submissions 表（如果有）
+    try:
+        result2 = db.execute('SELECT COUNT(*) FROM paper_submissions WHERE TRIM(LOWER(title)) = ?', (title,)).fetchone()
+    except Exception:
+        result2 = [0]
+    exists = result1[0] > 0 or result2[0] > 0
+    return jsonify({'exists': exists})
 
 if __name__ == '__main__':
     try:

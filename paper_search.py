@@ -7,6 +7,10 @@ import torch
 from models import Agent
 from openai import OpenAI
 import sqlite3
+from transformers import AutoModelForCausalLM
+from dbutils.pooled_db import PooledDB
+from symspellpy import SymSpell, Verbosity
+import re
 
 # 设置环境变量以优化内存使用
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
@@ -41,6 +45,25 @@ class PaperSearch:
                 api_key="sk-0ab105e607314279b67232d2de420d55",
                 base_url="https://api.deepseek.com/v1"
             )
+            
+            # 初始化拼写检查器
+            self.sym_spell = SymSpell(max_dictionary_edit_distance=2, prefix_length=7)
+            # 加载英文词典
+            dictionary_path = "frequency_dictionary_en_82_765.txt"
+            if not os.path.exists(dictionary_path):
+                # 如果词典文件不存在，创建一个简单的词典
+                with open(dictionary_path, "w") as f:
+                    f.write("the 23135851162\n")
+                    f.write("of 13151942776\n")
+                    f.write("and 12997637966\n")
+                    f.write("to 12136980858\n")
+                    f.write("a 9081174698\n")
+                    f.write("in 8469404971\n")
+                    f.write("for 5933321709\n")
+                    f.write("is 4705743816\n")
+                    f.write("on 3750423199\n")
+                    f.write("that 3400031103\n")
+            self.sym_spell.load_dictionary(dictionary_path, term_index=0, count_index=1)
             
         except Exception as e:
             print(f"初始化失败: {str(e)}")
@@ -152,8 +175,10 @@ Citation Suggestion:
         生成论文的BibTeX格式，空字段不输出
         """
         try:
-            # 获取引用key
-            if 'citations' in paper and paper['citations'] and 'key' in paper['citations'][0]:
+            # 优先使用 citation_key 字段
+            if 'citation_key' in paper and paper['citation_key']:
+                entry_key = paper['citation_key']
+            elif 'citations' in paper and paper['citations'] and 'key' in paper['citations'][0]:
                 entry_key = paper['citations'][0]['key']
             elif 'key' in paper:
                 entry_key = paper['key']
@@ -292,6 +317,38 @@ Level 3 (Specific): show me research on [最具体查询]"""
             print(f"查询生成失败: {str(e)}")
             return ["", "", "", ""]
 
+    def correct_spelling(self, text):
+        """修正文本中的拼写错误"""
+        # 将文本分割成单词
+        words = re.findall(r'\b\w+\b', text.lower())
+        corrected_words = []
+        
+        for word in words:
+            # 如果单词长度小于3，保持不变
+            if len(word) < 3:
+                corrected_words.append(word)
+                continue
+                
+            # 查找最接近的拼写建议
+            suggestions = self.sym_spell.lookup(word, Verbosity.CLOSEST, max_edit_distance=2)
+            if suggestions:
+                # 使用第一个建议
+                corrected_words.append(suggestions[0].term)
+            else:
+                # 如果没有建议，保持原样
+                corrected_words.append(word)
+        
+        # 重建文本，保持原始大小写
+        original_words = re.findall(r'\b\w+\b', text)
+        corrected_text = text
+        for i, (original, corrected) in enumerate(zip(original_words, corrected_words)):
+            # 保持原始单词的大小写
+            if original[0].isupper():
+                corrected = corrected.capitalize()
+            corrected_text = corrected_text.replace(original, corrected, 1)
+            
+        return corrected_text
+
     def search_papers(self, query_paper, top_k=5, user_query=None, mode='multi-level', target_level=None):
         """
         支持两种模式：
@@ -299,8 +356,15 @@ Level 3 (Specific): show me research on [最具体查询]"""
         - mode='multi-level'：返回指定level的结果
         :param target_level: 指定要搜索的level（1-3），如果为None则使用原文查询
         """
+        original_query = query_paper if isinstance(query_paper, str) else f"{query_paper['title']} {query_paper.get('abstract', '')}"
+        corrected_query = None
+        
         if isinstance(query_paper, str):
-            query_text = query_paper
+            # 修正拼写错误
+            query_text = self.correct_spelling(query_paper)
+            if query_text != query_paper:
+                print(f"\n修正拼写错误: {query_paper} -> {query_text}")
+                corrected_query = query_text
         else:
             query_text = f"{query_paper['title']} {query_paper.get('abstract', '')}"
 
@@ -383,7 +447,9 @@ Level 3 (Specific): show me research on [最具体查询]"""
             
             return {
                 'candidates': formatted_candidates,
-                'filtered': formatted_results
+                'filtered': formatted_results,
+                'original_query': original_query,
+                'corrected_query': corrected_query
             }
             
         # 分级查询模式
@@ -465,7 +531,9 @@ Level 3 (Specific): show me research on [最具体查询]"""
             
         return {
             'candidates': formatted_candidates,
-            'filtered': formatted_results
+            'filtered': formatted_results,
+            'original_query': original_query,
+            'corrected_query': corrected_query
         }
 
     def analyze_paper(self, query_paper, paper):
