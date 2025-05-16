@@ -596,10 +596,11 @@
             <div style="display: flex; align-items: center;">
                 <div class="nav-links" style="display: flex; gap: 1.5rem;">
                     <a href="/" class="nav-link">搜索</a>
-                    <a href="/upload" class="nav-link">上传论文</a>
-                    <a href="/admin" class="nav-link">查看审核状态</a>
+                    <a href="/upload" class="nav-link">新论文入库</a>
+                    <a href="/admin" class="nav-link">查看论文库</a>
                 </div>
                 <span id="online-users" style="color:#2563eb;font-weight:500;font-size:0.98rem;background:rgba(240,247,255,0.8);padding:3px 12px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.03);margin-left:24px;">活跃人数: --</span>
+                <span style="color:#f59e42;font-size:0.95rem;margin-left:10px;">（活跃人数过多时，搜索速度可能变慢）</span>
             </div>
         </div>
     </nav>
@@ -624,6 +625,12 @@
                     </button>
                 </div>
                 </form>
+                <!-- 拼写修正建议 -->
+                <div id="spellingSuggestion" style="display: none; margin-top: 8px; padding: 8px 12px; background-color: #e8f4fd; border: 1px solid #b8daff; border-radius: 8px; font-size: 0.95rem;">
+                    <i class="fas fa-spell-check" style="color: #0056b3;"></i>
+                    <span style="margin-left: 8px;">建议修正为：</span>
+                    <span id="suggestedText" style="color: #28a745; font-weight: 500; cursor: pointer; text-decoration: underline;"></span>
+                </div>
                 <!-- 原文查询示例，仅原文模式下显示 -->
                 <div id="originalExamples" style="display:none; background: #eef2fb; border-radius: 12px; padding: 16px 20px 8px 20px; margin-bottom: 10px;">
                     <div style="font-size: 1.05rem; color: #f59e42; margin-bottom: 8px;">
@@ -631,11 +638,15 @@
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 12px;">
                         <div class="example-query" style="background: #fff; border-radius: 24px; padding: 10px 20px; display: flex; align-items: center; cursor: pointer; border: 1px solid #e5e7eb;" onclick="fillExample(0)">
-                            <span style="flex:1;">Show me research on neural architecture search methods and their applications in deep learning.</span>
+                            <span style="flex:1;">Show me research on neural architecture search methods with differentiable approach.</span>
                             <i class="fas fa-search" style="color: #bdbdbd; margin-left: 10px;"></i>
                         </div>
                         <div class="example-query" style="background: #fff; border-radius: 24px; padding: 10px 20px; display: flex; align-items: center; cursor: pointer; border: 1px solid #e5e7eb;" onclick="fillExample(1)">
                             <span style="flex:1;">Give me papers about anomaly detection techniques.</span>
+                            <i class="fas fa-search" style="color: #bdbdbd; margin-left: 10px;"></i>
+                        </div>
+                        <div class="example-query" style="background: #fff; border-radius: 24px; padding: 10px 20px; display: flex; align-items: center; cursor: pointer; border: 1px solid #e5e7eb;" onclick="fillExample(2)">
+                            <span style="flex:1;">Give me papers about anomaly detection that focus on industrial data.</span>
                             <i class="fas fa-search" style="color: #bdbdbd; margin-left: 10px;"></i>
                         </div>
                     </div>
@@ -681,16 +692,37 @@
         // 全局变量用于终止上一次的请求
         window.currentSearchController = null;
 
-        // 生成唯一ID并存储到localStorage
-        if (!localStorage.getItem('my_uid')) {
-            localStorage.setItem('my_uid', Math.random().toString(36).substr(2, 10) + Date.now());
+        // 生成唯一ID并存储到sessionStorage
+        if (!sessionStorage.getItem('my_uid')) {
+            sessionStorage.setItem('my_uid', Math.random().toString(36).substr(2, 10) + Date.now());
         }
-        const my_uid = localStorage.getItem('my_uid');
+        const my_uid = sessionStorage.getItem('my_uid');
 
         // WebSocket 实时活跃人数
-        const socket = io({ query: { uid: my_uid } });
+        const socket = io({ 
+            query: { uid: my_uid },
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
+
+        socket.on('connect', function() {
+            console.log('WebSocket connected');
+        });
+
+        socket.on('connect_error', function(error) {
+            console.error('WebSocket connection error:', error);
+        });
+
         socket.on('online_users', function(data) {
-            document.getElementById('online-users').innerText = '活跃人数: ' + data.online_users;
+            const onlineUsersElement = document.getElementById('online-users');
+            if (onlineUsersElement) {
+                onlineUsersElement.innerText = '活跃人数: ' + data.online_users;
+            }
+        });
+
+        socket.on('disconnect', function() {
+            console.log('WebSocket disconnected');
         });
 
         // 开关按钮逻辑
@@ -949,6 +981,11 @@
                 <div class="query-level-info mb-4">
                     <h2>搜索结果 (${totalCount}篇论文)</h2>
                     <p class="text-muted">当前查询: ${generatedQuery}</p>
+                    ${data.corrected_query ? `
+                    <div class="alert alert-info" style="margin-top: 10px; padding: 10px 15px; border-radius: 8px; background-color: #e8f4fd; border: 1px solid #b8daff;">
+                        <i class="fas fa-spell-check"></i> 已自动修正拼写: <span style="color: #0056b3; font-weight: 500;">${data.original_query}</span> → <span style="color: #28a745; font-weight: 500;">${data.corrected_query}</span>
+                    </div>
+                    ` : ''}
                 </div>
             `;
 
@@ -980,6 +1017,9 @@
                 </div>
             `;
             
+            // 在渲染详细结果前，将filteredResults存到window.searchResults
+            window.searchResults = filteredResults;
+            
             // 添加详细结果（显示selector筛选后的结果）
             filteredResults.forEach((result, index) => {
                 const cacheKey = result.title;
@@ -1002,7 +1042,7 @@
                         <div class="bibtex-section">
                             <div class="bibtex-title">
                                 BibTeX
-                                <button class="copy-button" onclick="copyBibtex(${index})">
+                                <button class="copy-button" onclick="copyBibtex(this)">
                                     <i class="fas fa-copy"></i> 复制
                                 </button>
                             </div>
@@ -1011,7 +1051,7 @@
                         <div class="citation-analysis">
                             <div class="citation-section">
                                 <div class="citation-section-title">引用分析</div>
-                                <button class="btn btn-outline-primary btn-sm mb-2" onclick="analyzePaperOnClick('${encodeURIComponent(JSON.stringify(result))}', '${query}', ${index}, this)">分析引用关系</button>
+                                <button class="btn btn-outline-primary btn-sm mb-2" onclick="analyzePaperOnClick(this, '${encodeURIComponent(query)}', ${index})" data-paper-index="${index}">分析引用关系</button>
                                 <div class="citation-content" id="citation-analysis-${index}" style="display:none;"></div>
                                     </div>
                                 </div>
@@ -1036,8 +1076,9 @@
         }
 
         // 新增分析按钮点击函数
-        function analyzePaperOnClick(paperStr, query, index, btn) {
-            const paper = JSON.parse(decodeURIComponent(paperStr));
+        function analyzePaperOnClick(btn, query, index) {
+            const paperIndex = btn.getAttribute('data-paper-index');
+            const paper = window.searchResults[paperIndex];
             const analysisDiv = document.getElementById(`citation-analysis-${index}`);
             if (analysisDiv.style.display === 'block') {
                 analysisDiv.style.display = 'none';
@@ -1078,18 +1119,40 @@
 
         function copyBibtex(button) {
             const bibtexContent = button.parentElement.nextElementSibling.textContent;
-            navigator.clipboard.writeText(bibtexContent).then(() => {
-                const originalText = button.innerHTML;
-                button.innerHTML = '<i class="fas fa-check"></i> 已复制';
-                button.style.backgroundColor = 'rgba(72, 187, 120, 0.2)';
-                button.style.borderColor = 'rgba(72, 187, 120, 0.3)';
-                
-                setTimeout(() => {
-                    button.innerHTML = originalText;
-                    button.style.backgroundColor = '';
-                    button.style.borderColor = '';
-                }, 2000);
-            });
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(bibtexContent).then(() => {
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-check"></i> 已复制';
+                    button.style.backgroundColor = 'rgba(72, 187, 120, 0.2)';
+                    button.style.borderColor = 'rgba(72, 187, 120, 0.3)';
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                        button.style.backgroundColor = '';
+                        button.style.borderColor = '';
+                    }, 2000);
+                });
+            } else {
+                // 兼容性降级方案
+                const textarea = document.createElement('textarea');
+                textarea.value = bibtexContent;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    const originalText = button.innerHTML;
+                    button.innerHTML = '<i class="fas fa-check"></i> 已复制';
+                    button.style.backgroundColor = 'rgba(72, 187, 120, 0.2)';
+                    button.style.borderColor = 'rgba(72, 187, 120, 0.3)';
+                    setTimeout(() => {
+                        button.innerHTML = originalText;
+                        button.style.backgroundColor = '';
+                        button.style.borderColor = '';
+                    }, 2000);
+                } catch (err) {
+                    alert('复制失败，请手动复制内容');
+                }
+                document.body.removeChild(textarea);
+            }
         }
 
         // 添加折叠功能
@@ -1153,8 +1216,9 @@
         // 示例点击填充
         function fillExample(idx) {
             const examples = [
-                'Show me research on neural architecture search methods and their applications in deep learning.',
-                'Give me papers about anomaly detection techniques.'
+                'Show me research on neural architecture search methods with differentiable approach.',
+                'Give me papers about anomaly detection techniques.',
+                'Give me papers about anomaly detection that focus on industrial data.'
             ];
             document.getElementById('searchInput').value = examples[idx];
         }
@@ -1170,6 +1234,55 @@
                 icon.textContent = '▼';
             }
         }
+
+        // 添加拼写检查相关函数
+        let spellingCheckTimeout = null;
+
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const input = e.target.value.trim();
+            if (!input) {
+                document.getElementById('spellingSuggestion').style.display = 'none';
+                return;
+            }
+            
+            // 清除之前的定时器
+            if (spellingCheckTimeout) {
+                clearTimeout(spellingCheckTimeout);
+            }
+            
+            // 设置新的定时器，延迟500ms后检查拼写
+            spellingCheckTimeout = setTimeout(() => {
+                fetch('/check_spelling', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: input })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const suggestionDiv = document.getElementById('spellingSuggestion');
+                    const suggestedText = document.getElementById('suggestedText');
+                    
+                    if (data.corrected_query && data.corrected_query !== input) {
+                        suggestedText.textContent = data.corrected_query;
+                        suggestionDiv.style.display = 'block';
+                    } else {
+                        suggestionDiv.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('拼写检查失败:', error);
+                });
+            }, 500);
+        });
+
+        // 点击建议文本时自动填充
+        document.getElementById('suggestedText').addEventListener('click', function() {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.value = this.textContent;
+            document.getElementById('spellingSuggestion').style.display = 'none';
+        });
     </script>
 </body>
 </html>

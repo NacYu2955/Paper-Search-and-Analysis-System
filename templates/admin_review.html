@@ -236,8 +236,8 @@
             <a href="/" class="navbar-brand">论文搜索系统</a>
             <div class="nav-links">
                 <a href="/" class="nav-link">搜索</a>
-                <a href="/upload" class="nav-link">上传论文</a>
-                <a href="/admin" class="nav-link">查看审核状态</a>
+                <a href="/upload" class="nav-link">新论文入库</a>
+                <a href="/admin" class="nav-link">查看论文库</a>
                 <a href="/admin/review" class="nav-link active">管理员审核</a>
             </div>
         </div>
@@ -246,42 +246,43 @@
     <div class="container">
         <div class="admin-container">
             <h1 class="admin-title">管理员审核</h1>
-            <div style="margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; justify-content: center;">
-                <input id="searchInput" class="form-control" style="max-width:350px;" placeholder="搜索标题、作者、状态、摘要、期刊、DOI..." onkeydown="if(event.key==='Enter'){searchAllTabs();}">
-                <button class="btn btn-primary" onclick="searchAllTabs()">搜索</button>
-            </div>
             <!-- 添加标签页切换 -->
             <ul class="nav nav-tabs mb-4" id="paperTabs" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">待审核论文</button>
+                    <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending" type="button" role="tab">入库论文</button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="reviewed-tab" data-bs-toggle="tab" data-bs-target="#reviewed" type="button" role="tab">已审核论文</button>
+                    <button class="nav-link" id="reviewed-tab" data-bs-toggle="tab" data-bs-target="#reviewed" type="button" role="tab">查看库内论文</button>
                 </li>
             </ul>
 
             <!-- 标签页内容 -->
             <div class="tab-content" id="paperTabsContent">
-                <!-- 待审核论文 -->
+                <!-- 待入库论文-->
                 <div class="tab-pane fade show active" id="pending" role="tabpanel">
                     <div id="pendingPapersList">
                         <div class="loading">
                             <div class="spinner-border" role="status">
                                 <span class="visually-hidden">加载中...</span>
                             </div>
-                            <p class="mt-2">正在加载待审核论文...</p>
+                            <p class="mt-2">正在加载待入库论文...</p>
                         </div>
                     </div>
                 </div>
 
-                <!-- 已审核论文 -->
+                <!-- 查看库内论文 -->
                 <div class="tab-pane fade" id="reviewed" role="tabpanel">
+                    <!-- 搜索区域，移动到Tab内容顶部，只在该Tab下显示 -->
+                    <div id="reviewedSearchBar" style="margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; justify-content: center; text-align:center;">
+                        <input id="searchInput" class="form-control" style="max-width:350px;display:inline-block;" placeholder="搜索标题、作者、状态、摘要、期刊、DOI..." onkeydown="if(event.key==='Enter'){searchAllTabs();}">
+                        <button class="btn btn-primary" onclick="searchAllTabs()">搜索</button>
+                    </div>
                     <div id="reviewedPapersList">
                         <div class="loading">
                             <div class="spinner-border" role="status">
                                 <span class="visually-hidden">加载中...</span>
                             </div>
-                            <p class="mt-2">正在加载已审核论文...</p>
+                            <p class="mt-2">正在加载库内论文...</p>
                         </div>
                     </div>
                 </div>
@@ -290,11 +291,12 @@
     </div>
 
     <script>
-        // 加载待审核论文列表
+        // 加载待入库论文列表
         async function loadPendingPapers() {
             try {
                 const response = await fetch('/admin/pending_papers');
                 const papers = await response.json();
+                window.pendingPapers = papers;
                 const papersList = document.getElementById('pendingPapersList');
 
                 if (papers.error) {
@@ -357,7 +359,7 @@
         let reviewedCurrentPage = 1;
         const reviewedPageSize = 10;
 
-        // 加载已审核论文列表
+        // 加载库内论文列表
         async function loadReviewedPapers() {
             try {
                 const response = await fetch('/admin/reviewed_papers');
@@ -458,9 +460,32 @@
 
         // 审核相关函数
         function reviewPaper(paperId, action) {
-            const commentDiv = document.getElementById(`comment-${paperId}`);
-            commentDiv.style.display = 'block';
-            commentDiv.dataset.action = action;
+            let paper = null;
+            if (window.pendingPapers) {
+                paper = window.pendingPapers.find(p => p.id === paperId);
+            }
+            if (action === 'approve' && paper) {
+                fetch('/admin/check_duplicate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({title: paper.title})
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.exists) {
+                        alert('该论文已存在库中，不能重复入库！');
+                        return;
+                    } else {
+                        const commentDiv = document.getElementById(`comment-${paperId}`);
+                        commentDiv.style.display = 'block';
+                        commentDiv.dataset.action = action;
+                    }
+                });
+            } else {
+                const commentDiv = document.getElementById(`comment-${paperId}`);
+                commentDiv.style.display = 'block';
+                commentDiv.dataset.action = action;
+            }
         }
 
         async function submitReview(paperId) {
@@ -559,11 +584,9 @@
 
         // 搜索功能
         function searchAllTabs() {
-            const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
-            // 待审核tab
-            if (document.getElementById('pending').classList.contains('active')) {
-                filterPapers('pendingPapersList', window.pendingPapers, keyword);
-            } else {
+            // 只在查看库内论文Tab下执行搜索
+            if (document.getElementById('reviewed').classList.contains('active') || document.getElementById('reviewed').classList.contains('show')) {
+                const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
                 filterPapers('reviewedPapersList', window.reviewedPapers, keyword);
             }
         }
