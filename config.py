@@ -2,7 +2,7 @@
 import os
 
 # DeepSeek API配置
-DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', 'sk-0ab105e607314279b67232d2de420d55')
+DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', 'your_deepseek_api_key')
 DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
 
 # 模型路径配置
@@ -18,10 +18,10 @@ UPLOAD_FOLDER = 'pdfs'
 ALLOWED_EXTENSIONS = {'pdf'}
 
 # 腾讯云COS配置
-COS_SECRET_ID = os.getenv('COS_SECRET_ID', 'AKIDiT4UhgR1OYWLxPfiX8VeaMwJUTE2xlPs')
-COS_SECRET_KEY = os.getenv('COS_SECRET_KEY', 'OadYJ8qPp6OZaP0b4NSM4ZqwtiZY4So8')
-COS_REGION = os.getenv('COS_REGION', 'ap-guangzhou')  
-COS_BUCKET_NAME = os.getenv('COS_BUCKET_NAME', 'pasa-v1-1354374320')  
+COS_SECRET_ID = os.getenv('COS_SECRET_ID', 'your_cos_secret_id')
+COS_SECRET_KEY = os.getenv('COS_SECRET_KEY', 'your_cos_secret_key')
+COS_REGION = os.getenv('COS_REGION', 'ap_your_location')  
+COS_BUCKET_NAME = os.getenv('COS_BUCKET_NAME', 'your_cos_bucket_name')  
 COS_FOLDER = 'pdfs'
 
 # 是否启用腾讯云COS存储（如果为False，则使用本地存储）
