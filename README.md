@@ -135,8 +135,7 @@
 
 1. **克隆项目**
 ```bash
-git clone <repository-url>
-cd pasa
+git clone https://github.com/NacYu2955/Paper-Search-and-Analysis-System.git
 ```
 
 2. **安装Python依赖**
@@ -159,12 +158,7 @@ export COS_SECRET_ID="your-cos-secret-id"
 export COS_SECRET_KEY="your-cos-secret-key"
 ```
 
-5. **初始化数据库**
-```bash
-python -c "from app import init_db; init_db()"
-```
-
-6. **启动服务**
+5. **启动服务**
 ```bash
 python start.py
 ```
