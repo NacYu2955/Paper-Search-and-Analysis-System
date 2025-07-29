@@ -2,6 +2,12 @@
 
 一个基于深度学习的智能论文检索系统，支持实时搜索、多轮对话、PDF管理和引用分析等功能。
 
+## 🌐 在线访问
+
+**项目网站**: [http://dicalab-paper.com](http://dicalab-paper.com)
+
+---
+
 ## 🚀 系统特性
 
 - **智能搜索**: 基于语义向量相似度和大模型理解的混合检索
@@ -165,7 +171,7 @@ python start.py
 
 ## 🚀 快速开始
 
-1. **访问系统**: http://dicalab-paper.com
+1. **访问系统**: [http://dicalab-paper.com](http://dicalab-paper.com)
 2. **输入查询**: 支持中英文自然语言查询
 3. **查看结果**: 实时推送高相关性论文
 4. **深度分析**: 点击论文查看详情和引用分析
@@ -212,8 +218,7 @@ PORT=6006
 ## 📞 联系方式
 
 如有问题或建议，请通过以下方式联系：
-- 邮箱: [your-email]
-- GitHub: [your-github]
+- 邮箱: [xinyu9026@gmail.com]
 
 ---
 
