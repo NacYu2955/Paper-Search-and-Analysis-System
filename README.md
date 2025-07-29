@@ -116,10 +116,10 @@ The system uses SQLite database to store paper information, with the following m
    - Total: ~14GB
 
 3. **Storage Costs**
-   - Model files: ~15GB
+   - Model files: ~31GB
    - Paper database: ~100MB
    - PDF files: Grows as needed
-   - Total: ~15GB base
+   - Total: ~31GB base
 
 ### Cloud Service Costs
 
