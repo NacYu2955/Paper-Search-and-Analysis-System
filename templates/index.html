@@ -208,6 +208,166 @@
             line-height: 1.6;
         }
 
+        .chat-section {
+            margin-top: 1.5rem;
+        }
+
+        .chat-section-title {
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .chat-content {
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            padding: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .chat-messages {
+            margin-bottom: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .chat-message {
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .chat-message.user {
+            justify-content: flex-end;
+        }
+
+        .chat-message.assistant {
+            justify-content: flex-start;
+        }
+
+        .chat-message-content {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 16px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .chat-message.user .chat-message-content {
+            background-color: var(--primary-color);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .chat-message.assistant .chat-message-content {
+            background-color: white;
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-input-container {
+            display: flex;
+            gap: 0.5rem;
+            align-items: flex-end;
+        }
+
+        .chat-input {
+            flex: 1;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.5rem;
+            font-size: 0.9rem;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+        }
+
+        .chat-send-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .chat-send-btn:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .chat-send-btn:disabled {
+            background-color: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .chat-typing {
+            display: none;
+            padding: 0.75rem 1rem;
+            background-color: white;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .chat-typing.show {
+            display: block;
+        }
+
+        .pdf-section {
+            margin-top: 1.5rem;
+        }
+
+        .pdf-section-title {
+            color: var(--primary-color);
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .pdf-content {
+            background-color: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .pdf-info {
+            margin-top: 1rem;
+        }
+
+        .pdf-viewer {
+            width: 100%;
+            height: 600px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .pdf-upload-form {
+            background-color: #e8f5e8;
+            border: 2px dashed #28a745;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .pdf-upload-form.dragover {
+            background-color: #d4edda;
+            border-color: #155724;
+        }
+
         .loading {
             text-align: center;
             padding: 2rem;
@@ -272,111 +432,7 @@
             border-width: 0.15em;
         }
 
-        .query-type-buttons {
-            display: flex;
-            gap: 1rem;
-            margin: 1rem 0;
-            justify-content: center;
-        }
 
-        .query-type-btn {
-            padding: 0.5rem 1.5rem;
-            border: 2px solid var(--primary-color);
-            border-radius: 8px;
-            background-color: transparent;
-            color: var(--primary-color);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .query-type-btn.active {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .query-type-btn:hover {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .query-level {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .query-btn {
-            padding: 8px 16px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            background: #fff;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .query-btn:hover {
-            background: #f0f0f0;
-        }
-
-        .query-btn.active {
-            background: #007bff;
-            color: white;
-            border-color: #0056b3;
-        }
-
-        .query-levels {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-        }
-
-        .query-levels h3 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .query-levels-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .query-level-item {
-            background: white;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            padding: 12px;
-            transition: all 0.3s ease;
-        }
-
-        .query-level-item.active {
-            border-color: #007bff;
-            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
-        }
-
-        .query-level-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-
-        .query-level-number {
-            font-weight: bold;
-            color: #007bff;
-        }
-
-        .query-level-type {
-            color: #6c757d;
-            font-size: 0.9em;
-        }
-
-        .query-level-content {
-            color: #495057;
-            font-size: 0.95em;
-            line-height: 1.4;
-        }
 
         .candidate-papers {
             background: #f8f9fa;
@@ -485,52 +541,8 @@
             text-align: center;
             margin: 20px 0;
         }
-        .result-section {
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        .level-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #0d6efd;
-        }
-        .paper-item {
-            margin-bottom: 15px;
-            padding: 10px;
-            border: 1px solid #eee;
-            border-radius: 5px;
-        }
-        .paper-title {
-            font-weight: bold;
-            color: #0d6efd;
-        }
-        .paper-authors {
-            color: #666;
-            font-style: italic;
-        }
-        .paper-abstract {
-            margin-top: 10px;
-            color: #333;
-        }
-        .paper-meta {
-            margin-top: 5px;
-            color: #666;
-            font-size: 0.9em;
-        }
-        .search-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .search-box {
-            margin-bottom: 20px;
-        }
-        .level-loading {
-            font-size: 1.1rem;
-            margin: 10px 0 20px 0;
-        }
+
+
         /* 进度条样式 */
         .progress-bar-container {
             width: 100%;
@@ -586,40 +598,242 @@
             color: white;
             background-color: rgba(255, 255, 255, 0.2);
         }
+        .citation-chat-section {
+            margin-top: 1.5rem;
+            background: #f4f7fb;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            padding: 1.2rem 1rem 0.5rem 1rem;
+            width: 100%;
+            max-width: none;
+        }
+        .citation-chat-title {
+            font-weight: 600;
+            color: #2563eb;
+            margin-bottom: 0.7rem;
+            font-size: 1.08rem;
+        }
+        .citation-chat-content {
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #e3e8f0;
+            min-height: 120px;
+            max-height: 320px;
+            overflow-y: auto;
+            padding: 1rem 0.7rem 0.5rem 0.7rem;
+            margin-bottom: 0.7rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .citation-chat-messages {
+            display: flex;
+            flex-direction: column;
+            gap: 0.7rem;
+        }
+        .citation-chat-message {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end;
+        }
+        .citation-chat-message.user {
+            justify-content: flex-end;
+        }
+        .citation-chat-message.assistant {
+            justify-content: flex-start;
+        }
+        .citation-chat-message-content {
+            max-width: 75%;
+            padding: 0.7rem 1rem;
+            border-radius: 16px;
+            font-size: 1rem;
+            line-height: 1.6;
+            word-break: break-word;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .citation-chat-message.user .citation-chat-message-content {
+            background: linear-gradient(90deg, #e0e7ff 0%, #c7d2fe 100%);
+            color: #1e293b;
+            border-bottom-right-radius: 4px;
+            border-bottom-left-radius: 16px;
+        }
+        .citation-chat-message.assistant .citation-chat-message-content {
+            background: #f1f5f9;
+            color: #334155;
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 16px;
+        }
+        .citation-chat-typing {
+            color: #2563eb;
+            font-size: 0.98rem;
+            margin-left: 0.5rem;
+        }
+        .citation-chat-input-container {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+            border-top: 1px solid #e3e8f0;
+            padding-top: 0.7rem;
+            background: #f4f7fb;
+            border-radius: 0 0 10px 10px;
+        }
+        .citation-chat-input {
+            flex: 1;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 0.5rem 0.8rem;
+            font-size: 1rem;
+            resize: none;
+            background: #fff;
+            min-height: 38px;
+            max-height: 80px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        .citation-chat-send-btn {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 0.9rem;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: background 0.18s;
+            box-shadow: 0 1px 2px rgba(37,99,235,0.08);
+        }
+        .citation-chat-send-btn:hover {
+            background: #1d4ed8;
+        }
+        
+        /* 实时搜索相关样式 */
+        .realtime-paper-item {
+            background: #fff;
+            border: 1px solid #e3e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            transition: all 0.3s ease;
+            animation: slideInFromTop 0.5s ease-out;
+        }
+        
+        .realtime-paper-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .realtime-batch-indicator {
+            background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
+        
+        .realtime-status-bar {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .realtime-progress {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .realtime-progress-bar {
+            width: 200px;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .realtime-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        @keyframes slideInFromTop {
+            0% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+        
+        .realtime-loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+
+        
+        /* 流式输出样式 */
+        .streaming-content {
+            line-height: 1.6;
+            word-break: break-word;
+        }
+        
+        .cursor {
+            animation: blink 1s infinite;
+            color: #2563eb;
+            font-weight: bold;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
     </style>
 </head>
 <body>
     <!-- 导航栏 -->
     <nav class="navbar">
-        <div class="container" style="display: flex; align-items: center; justify-content: space-between; max-width: 1200px;">
-            <a href="/" class="navbar-brand">论文搜索系统</a>
+        <div class="container" style="display: flex; align-items: center; justify-content: space-between; max-width: 1200px; padding-left: 0;">
+            <a class="navbar-brand" href="/" style="display: flex; align-items: center; margin-left: 0;">
+                <img src="/static/logo.png" alt="Logo" style="height: 48px; margin-right: 10px;">
+                论文检索系统
+            </a>
             <div style="display: flex; align-items: center;">
-                <div class="nav-links" style="display: flex; gap: 1.5rem;">
-                    <a href="/" class="nav-link">搜索</a>
-                    <a href="/upload" class="nav-link">新论文入库</a>
-                    <a href="/admin" class="nav-link">查看论文库</a>
+                        <div class="nav-links" style="display: flex; gap: 1.5rem;">
+                    <a href="/" class="nav-link active">搜索</a>
+            <a href="/upload" class="nav-link">新论文入库</a>
+            <a href="/admin" class="nav-link">查看论文库</a>
                 </div>
                 <span id="online-users" style="color:#2563eb;font-weight:500;font-size:0.98rem;background:rgba(240,247,255,0.8);padding:3px 12px;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,0.03);margin-left:24px;">活跃人数: --</span>
-                <span style="color:#f59e42;font-size:0.95rem;margin-left:10px;">（活跃人数过多时，搜索速度可能变慢）</span>
+                <span style="color:#f59e42;font-size:0.8rem;margin-left:10px;">（活跃人数过多时，搜索速度可能变慢）</span>
             </div>
         </div>
     </nav>
     
     <div class="container">
         <div class="search-container">
-            <h1 class="search-title">论文搜索系统</h1>
+            <h1 class="search-title">谢谢关注我们的研究论文</h1>
             <div class="search-input-container">
-                <!-- 开关按钮 -->
-                <div style="display: flex; align-items: center; justify-content: flex-end; margin-bottom: 10px;">
-                    <label class="switch" style="margin-right: 10px;">
-                        <input type="checkbox" id="queryModeSwitch">
-                        <span class="slider"></span>
-                    </label>
-                    <span id="switchLabel">原文查询</span>
-                </div>
+
                 <form id="searchForm" onsubmit="searchPapers(event)">
                 <div class="input-group mb-3">
-                    <input type="text" id="searchInput" class="form-control form-control-lg" placeholder="请输入您想要搜索的学术查询">
+                    <input type="text" id="searchInput" class="form-control form-control-lg" placeholder="请输入您感兴趣的学术查询">
                         <button class="btn btn-primary" type="submit">
                         <i class="fas fa-search"></i> 搜索
                     </button>
@@ -631,8 +845,8 @@
                     <span style="margin-left: 8px;">建议修正为：</span>
                     <span id="suggestedText" style="color: #28a745; font-weight: 500; cursor: pointer; text-decoration: underline;"></span>
                 </div>
-                <!-- 原文查询示例，仅原文模式下显示 -->
-                <div id="originalExamples" style="display:none; background: #eef2fb; border-radius: 12px; padding: 16px 20px 8px 20px; margin-bottom: 10px;">
+                <!-- 查询示例 -->
+                <div id="originalExamples" style="display:block; background: #eef2fb; border-radius: 12px; padding: 16px 20px 8px 20px; margin-bottom: 10px;">
                     <div style="font-size: 1.05rem; color: #f59e42; margin-bottom: 8px;">
                         <i class="fas fa-hand-point-down"></i> Try the queries：
                     </div>
@@ -649,45 +863,60 @@
                             <span style="flex:1;">Give me papers about anomaly detection that focus on industrial data.</span>
                             <i class="fas fa-search" style="color: #bdbdbd; margin-left: 10px;"></i>
                         </div>
+                        <div class="example-query" style="background: #fff; border-radius: 24px; padding: 10px 20px; display: flex; align-items: center; cursor: pointer; border: 1px solid #e5e7eb;" onclick="fillExample(3)">
+                            <span style="flex:1;">请检索关于自然语言处理的应用研究。</span>
+                            <i class="fas fa-search" style="color: #bdbdbd; margin-left: 10px;"></i>
+                        </div>
+                        <div class="example-query" style="background: #fff; border-radius: 24px; padding: 10px 20px; display: flex; align-items: center; cursor: pointer; border: 1px solid #e5e7eb;" onclick="fillExample(4)">
+                            <span style="flex:1;">查找关于计算机视觉中目标检测技术的研究论文。</span>
+                            <i class="fas fa-search" style="color: #bdbdbd; margin-left: 10px;"></i>
+                        </div>
                     </div>
                 </div>
-                <div class="query-controls" id="queryControls">
-                    <div class="query-level">
-                        <button class="query-btn" data-level="1">宽泛</button>
-                        <button class="query-btn active" data-level="2">适中</button>
-                        <button class="query-btn" data-level="3">具体</button>
-                    </div>
-                    <div id="level-loading-1" class="level-loading" style="display:none;color:#0d6efd;text-align:center;">
-                        <div class="progress-bar-container"><div class="progress-bar" id="progress-bar-1" style="width: 40%"></div></div>
-                        <div class="progress-bar-label">正在查询中...</div>
-                    </div>
-                    <div id="level-loading-2" class="level-loading" style="display:none;color:#0d6efd;text-align:center;">
-                        <div class="progress-bar-container"><div class="progress-bar" id="progress-bar-2" style="width: 60%"></div></div>
-                        <div class="progress-bar-label">正在查询中...</div>
-                    </div>
-                    <div id="level-loading-3" class="level-loading" style="display:none;color:#0d6efd;text-align:center;">
-                        <div class="progress-bar-container"><div class="progress-bar" id="progress-bar-3" style="width: 80%"></div></div>
-                        <div class="progress-bar-label">正在查询中...</div>
-                    </div>
-                </div>
+
             </div>
-            <!-- 全局loading容器，原文查询时用 -->
+            <!-- 全局loading容器 -->
             <div id="global-loading" style="display:none;color:#0d6efd;text-align:center;margin-top:24px;">
                 <div class="progress-bar-container"><div class="progress-bar" id="progress-bar-global" style="width: 50%"></div></div>
                 <div class="progress-bar-label">正在查询中...</div>
             </div>
+            
+            <!-- 实时搜索显示区域 -->
+            <div id="realtime-container" style="display:none; margin-top: 20px;">
+                <div class="alert alert-info" style="border-radius: 12px; border-left: 4px solid #2563eb;">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div id="realtime-status-bar">
+                            <i class="fas fa-spinner fa-spin" style="color:#2563eb;font-size:1.5rem;margin-right:8px;"></i>
+                            <span id="realtime-status">实时搜索进行中...</span>
+                        </div>
+                        <!-- 删除停止实时搜索按钮 -->
+                    </div>
+                </div>
+                
+                <div id="realtime-papers-container">
+                    <!-- 实时推送的论文将在这里显示 -->
+                </div>
+                
+                <div id="realtime-loading" style="text-align: center; padding: 20px; color: #2563eb;">
+                    <div class="spinner-border spinner-border-sm" style="margin-right: 8px;"></div>
+                    <span>正在等待更多论文...</span>
+                </div>
+            </div>
+            
             <div id="results">
                 <!-- 结果将在这里动态显示 -->
             </div>
+            <div id="candidate-papers-root"></div>
+            <div id="all-candidates-list"></div>
         </div>
     </div>
 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <script>
-        let currentQueryLevel = 2; // 默认使用第二个等级（适中）
         let cachedResults = null;  // 用于缓存搜索结果
         let cachedAnalyses = {};   // 用于缓存引用分析结果
-        let mode = 'original';
+        let currentSessionId = null; // 当前搜索会话ID
+        let realtimePapers = []; // 存储实时推送的论文
 
         // 全局变量用于终止上一次的请求
         window.currentSearchController = null;
@@ -710,6 +939,10 @@
             console.log('WebSocket connected');
         });
 
+        socket.on('session_joined', function(data) {
+            console.log('成功加入会话:', data);
+        });
+
         socket.on('connect_error', function(error) {
             console.error('WebSocket connection error:', error);
         });
@@ -721,78 +954,15 @@
             }
         });
 
+        // 删除旧的实时搜索事件监听器，使用新的多等级监听器
+
         socket.on('disconnect', function() {
             console.log('WebSocket disconnected');
         });
 
-        // 开关按钮逻辑
-        document.addEventListener('DOMContentLoaded', function() {
-            const switchBtn = document.getElementById('queryModeSwitch');
-            const switchLabel = document.getElementById('switchLabel');
-            const queryControls = document.getElementById('queryControls');
-            const originalExamples = document.getElementById('originalExamples');
-            const searchInput = document.getElementById('searchInput');
-            
-            switchBtn.addEventListener('change', function() {
-                mode = this.checked ? 'multi-level' : 'original';
-                switchLabel.innerText = this.checked ? '摘要查询' : '摘要查询';
-                queryControls.style.display = this.checked ? 'block' : 'none';
-                originalExamples.style.display = this.checked ? 'none' : 'block';
-                searchInput.placeholder = this.checked ? '请输入论文摘要' : '请输入您想要搜索的学术查询';
-                
-                if (this.checked) {
-                    currentQueryLevel = 2;
-                    document.querySelectorAll('.query-btn').forEach(btn => {
-                        btn.classList.remove('active');
-                        if (parseInt(btn.dataset.level) === 2) {
-                            btn.classList.add('active');
-                        }
-                    });
-                } else {
-                    currentQueryLevel = 0; // 原文查询模式下使用 Level0
-                    // 主动隐藏所有分级loading
-                    [1,2,3].forEach(lv=>{
-                        const loadingDiv = document.getElementById('level-loading-'+lv);
-                        if (loadingDiv) loadingDiv.style.display = 'none';
-                    });
-                }
-                
-                // 如果有缓存的结果，清除它
-                cachedResults = null;
-                document.getElementById('results').innerHTML = '';
-            });
-            
-            // 初始化时设置为原文查询模式
-            switchBtn.checked = false;
-            mode = 'original';
-            switchLabel.innerText = '摘要查询';
-            queryControls.style.display = 'none';
-            originalExamples.style.display = 'block';
-            searchInput.placeholder = '请输入您想要搜索的学术查询';
-            currentQueryLevel = 0;
-        });
 
-        // 按钮点击事件
-        document.querySelectorAll('.query-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                updateQueryLevel(parseInt(this.dataset.level));
-            });
-        });
 
-        function updateQueryLevel(level) {
-            currentQueryLevel = level;
-            // 更新按钮状态
-            document.querySelectorAll('.query-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (parseInt(btn.dataset.level) === level) {
-                    btn.classList.add('active');
-                }
-            });
-            // 只切换显示
-            if (cachedResults) {
-                displayResults(cachedResults);
-            }
-        }
+
 
         // 进度条动画辅助函数
         function animateProgressBar(id, from, to, duration = 10000, mode = 'original') {
@@ -804,11 +974,7 @@
                 bar.style.width = '80%';
                 // 10秒后再补最后一段
                 setTimeout(() => {
-                    if (mode === 'multi-level') {
-                        bar.style.transition = 'width 5000ms cubic-bezier(.4,0,.2,1)';
-                    } else {
-                        bar.style.transition = 'width 1000ms cubic-bezier(.4,0,.2,1)';
-                    }
+                    bar.style.transition = 'width 1000ms cubic-bezier(.4,0,.2,1)';
                     bar.style.width = '100%';
                 }, 10000);
             }, 30);
@@ -816,155 +982,146 @@
 
         async function searchPapers(event) {
             if (event) event.preventDefault();
+            // 隐藏Try the queries示例容器
+            document.getElementById('originalExamples').style.display = 'none';
             const searchInput = document.getElementById('searchInput');
-            const query = searchInput.value.trim();
+            let query = searchInput.value.trim();
             if (!query) {
                 alert('请输入搜索内容');
                 return;
             }
-            // 隐藏示例区域
-            const examplesDiv = document.getElementById('originalExamples');
-            if (examplesDiv) examplesDiv.style.display = 'none';
-            if (mode === 'multi-level') {
-                document.getElementById('global-loading').style.display = 'none';
-                [1,2,3].forEach(lv=>{
-                    const loadingDiv = document.getElementById('level-loading-'+lv);
-                    if (loadingDiv) {
-                        loadingDiv.style.display = (lv === currentQueryLevel) ? 'block' : 'none';
-                        if (lv === currentQueryLevel) animateProgressBar('progress-bar-'+lv, 10, 80, 10000, mode);
-                    }
-                });
-                document.getElementById('results').innerHTML = '';
-                cachedResults = { success: true, results: {}, queries: [], selected_level: 2 };
-                // 先查level2
-                fetch('/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        query,
-                        mode: 'multi-level',
-                        query_level: 2
-                    }),
-                    signal: window.currentSearchController ? window.currentSearchController.signal : undefined
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (!data.error) {
-                        cachedResults.results['level_2'] = data.results['level_2'];
-                        cachedResults.queries = data.queries;
-                        currentQueryLevel = 2;
-                        displayResults(cachedResults);
-                    }
-                    // 并行查level1和level3
-                    [1,3].forEach(level=>{
-                        fetch('/search', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                query,
-                                mode: 'multi-level',
-                                query_level: level
-                            }),
-                            signal: window.currentSearchController ? window.currentSearchController.signal : undefined
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (!data.error) {
-                                cachedResults.results[`level_${level}`] = data.results[`level_${level}`];
-                                if (currentQueryLevel === level) {
-                                    displayResults(cachedResults);
-                                }
-                            }
-                        });
-                    });
-                })
-                .catch(error => {
-                    if (error.name === 'AbortError') {
-                        // 被中断的请求不做任何处理
-                        return;
-                    }
-                    document.getElementById('results').innerHTML = `<div class=\"alert alert-danger\">搜索失败: ${error}</div>`;
-                    [1,2,3].forEach(lv=>{
-                        const loadingDiv = document.getElementById('level-loading-'+lv);
-                        if (loadingDiv) loadingDiv.style.display = 'none';
-                    });
-                });
-                return;
-            }
-            // 原文查询逻辑
-            document.getElementById('global-loading').style.display = 'block';
-            animateProgressBar('progress-bar-global', 10, 80, 10000, mode);
+            
+
+            
+            // 执行搜索
+            document.getElementById('realtime-container').style.display = 'block';
+            document.getElementById('realtime-papers-container').innerHTML = '';
+            document.getElementById('realtime-loading').style.display = 'block';
             document.getElementById('results').innerHTML = '';
-            [1,2,3].forEach(lv=>{
-                const loadingDiv = document.getElementById('level-loading-'+lv);
-                if (loadingDiv) loadingDiv.style.display = 'none';
-            });
-            try {
-                const res = await fetch('/search', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        query, 
-                        mode, 
-                        query_level: currentQueryLevel
-                    }),
-                    signal: window.currentSearchController ? window.currentSearchController.signal : undefined
-                });
-                const data = await res.json();
-                document.getElementById('global-loading').style.display = 'none';
-                if (data.error) {
-                    document.getElementById('results').innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
-                    return;
-                }
-                cachedResults = data;
-                displayResults(data);
-            } catch (error) {
-                document.getElementById('global-loading').style.display = 'none';
-                if (error.name === 'AbortError') {
-                    // 被中断的请求不做任何处理
-                    return;
-                }
-                document.getElementById('results').innerHTML = `<div class=\"alert alert-danger\">搜索失败: ${error}</div>`;
+            // 重置状态栏内容为"实时搜索进行中..."
+            const statusBar = document.getElementById('realtime-status-bar');
+            if (statusBar) {
+                statusBar.innerHTML = `<i class="fas fa-spinner fa-spin" style="color:#2563eb;font-size:1.5rem;margin-right:8px;"></i><span id="realtime-status">实时搜索进行中...</span>`;
             }
+            
+            // 使用原文实时推送
+            await performOriginalRealtimeSearch(query);
         }
+
+
+
+        // 实时推送函数
+        async function performOriginalRealtimeSearch(query) {
+            // 离开所有旧session
+            Object.values(window.realtimeLevelSessions).forEach(session_id => {
+                socket.emit('leave_session', { session_id });
+            });
+            window.realtimeLevelSessions = {};
+            window.realtimeLevelPapers = {};
+            // 清空展开状态
+            window.expandedPapers.clear();
+            
+            // 发起单个查询实时搜索
+            const session_id = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9) + '_original';
+            window.realtimeLevelSessions[0] = session_id;
+            window.realtimeLevelPapers[0] = [];
+            socket.emit('join_session', { session_id });
+            fetch('/search_realtime', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query,
+                    mode: 'original',
+                    query_level: 0,
+                    session_id
+                })
+            });
+            // 只有一个等级
+            window.currentQueryLevel = 0;
+        }
+
+
+
+
+
+        // 删除不再使用的传统搜索函数，现在所有搜索都使用实时推送
+
+        // 渲染论文卡片，内容与用户模板完全一致
+        function renderPaperCard(result, index, query) {
+            return `
+                <div class="result-item">
+                    <div class="paper-info">
+                        <h3 style="cursor:pointer; color:#2563eb;" onclick="togglePaperDetail(${index})">
+                            <span>${result.title}</span>
+                            <span id="toggle-icon-${index}" style="font-size:1.1rem; margin-left:8px; color:#888;">▼</span>
+                        </h3>
+                        <div class="score-info" style="margin-bottom: 0.5rem;">
+                            <span class="score-badge">文本向量相似度：${(result.similarity * 100).toFixed(1)}%</span>
+                            <span class="score-badge">大模型理解相关度：${(result.select_score * 100).toFixed(1)}%</span>
+                        </div>
+                        <div class="paper-detail" id="paper-detail-${index}" style="display:none;">
+                            <p><strong>作者：</strong>${result.authors.join(', ')}</p>
+                            <p><strong>年份：</strong>${result.year}</p>
+                            <p><strong>摘要：</strong>${result.abstract}</p>
+                            <div class="bibtex-section">
+                                <div class="bibtex-title">
+                                    BibTeX
+                                    <button class="copy-button" onclick="copyBibtex(this)">
+                                        <i class="fas fa-copy"></i> 复制
+                                    </button>
+                                </div>
+                                <pre class="bibtex-content">${result.bibtex}</pre>
+                            </div>
+                            <div class="citation-analysis">
+                                <div class="citation-section">
+                                    <div class="citation-section-title">引用分析</div>
+                                    <button class="btn btn-outline-primary btn-sm mb-2" onclick="analyzePaperOnClick(this, '${encodeURIComponent(query)}', ${index})" data-paper-index="${index}">分析引用关系</button>
+                                    <div class="citation-content" id="citation-analysis-${index}" style="display:none;"></div>
+                                    <!-- 新增：引用分析对话区 -->
+                                    <div class="citation-chat-section">
+                                        <div class="citation-chat-title">引用分析对话</div>
+                                        <button class="btn btn-outline-success btn-sm mb-2" onclick="toggleCitationChat(${index})" data-paper-index="${index}">继续引用对话</button>
+                                        <div class="citation-chat-content" id="citation-chat-${index}" style="display:none;">
+                                            <div class="citation-chat-messages" id="citation-chat-messages-${index}"></div>
+                                            <div class="citation-chat-input-container">
+                                                <textarea class="citation-chat-input" id="citation-chat-input-${index}" placeholder="输入您的引用相关问题..." rows="2" onkeydown="handleCitationChatKeyDown(event, ${index})"></textarea>
+                                                <button class="citation-chat-send-btn" onclick="sendCitationMessage(${index})">
+                                                    <i class="fas fa-paper-plane"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="pdf-section">
+                                <div class="pdf-section-title">PDF文件</div>
+                                <div class="pdf-content" id="pdf-content-${index}">
+                                    ${result.pdf_file_path ? `<a href="javascript:void(0)" onclick="viewPDF(${result.id})" class="btn btn-link btn-sm">查看当前PDF</a>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 删除不再使用的旧函数，现在使用新的WebSocket事件处理
 
         function displayResults(data) {
             const resultsDiv = document.getElementById('results');
             const searchInput = document.getElementById('searchInput');
             const query = searchInput.value.trim();
-            if (mode === 'multi-level') {
-                [1,2,3].forEach(lv=>{
-                    const loadingDiv = document.getElementById('level-loading-'+lv);
-                    if (loadingDiv) loadingDiv.style.display = (lv === currentQueryLevel && !data.results[`level_${currentQueryLevel}`]) ? 'block' : 'none';
-                });
-            } else {
-                // 原文查询时隐藏所有分级loading
-                [1,2,3].forEach(lv=>{
-                    const loadingDiv = document.getElementById('level-loading-'+lv);
-                    if (loadingDiv) loadingDiv.style.display = 'none';
-                });
-            }
+            
             if (data.error) {
                 resultsDiv.innerHTML = `<div class=\"alert alert-danger\">${data.error}</div>`;
                 return;
             }
-            // 兼容原文查询和分级查询
-            let levelKey;
-            if (mode === 'original') {
-                levelKey = 'level_0';
-            } else {
-                levelKey = `level_${currentQueryLevel}`;
-            }
-            // 如果当前分级还在加载，不显示"没有该类型的查询结果"
-            if (mode === 'multi-level') {
-                const loadingDiv = document.getElementById('level-loading-' + currentQueryLevel);
-                if (loadingDiv && loadingDiv.style.display === 'block') {
-                    resultsDiv.innerHTML = '';
-                    return;
-                }
-            }
+            
+            // 使用level_0作为结果键
+            const levelKey = 'level_0';
+            
             if (!data.results[levelKey]) {
-                resultsDiv.innerHTML = '<div class="alert alert-info">没有该类型的查询结果</div>';
+                resultsDiv.innerHTML = '<div class="alert alert-info">没有查询结果</div>';
                 return;
             }
             const levelResults = data.results[levelKey];
@@ -972,11 +1129,14 @@
             const filteredResults = levelResults.filtered;
             if (!candidates || candidates.length === 0) {
                 resultsDiv.innerHTML = '<div class="alert alert-info">未找到相关论文</div>';
+                // 清空候选论文列表
+                const candidatePapersRoot = document.getElementById('candidate-papers-root');
+                if(candidatePapersRoot) candidatePapersRoot.innerHTML = '';
                 return;
             }
             const totalCount = filteredResults.length;
-            // 获取当前级别的生成查询
-            const generatedQuery = data.queries[currentQueryLevel] || query;
+            // 获取当前查询
+            const generatedQuery = data.queries && data.queries[0] ? data.queries[0] : query;
             let resultsHtml = `
                 <div class="query-level-info mb-4">
                     <h2>搜索结果 (${totalCount}篇论文)</h2>
@@ -989,42 +1149,10 @@
                 </div>
             `;
 
-            // 添加候选论文列表
-            resultsHtml += `
-                <div class="candidate-papers mb-4">
-                    <div class="candidate-header" onclick="toggleCandidateList()">
-                        <h3>候选论文列表</h3>
-                        <span class="toggle-icon">▼</span>
-                    </div>
-                    <div class="candidate-list" id="candidateList" style="display:none;">
-                        ${candidates.map((result, index) => `
-                            <div class="candidate-item">
-                                <div class="candidate-title">
-                                    <span class="candidate-number">${index + 1}.</span>
-                                    <span class="candidate-text">${result.title}</span>
-                                </div>
-                                <div class="candidate-scores">
-                                    <span class="score-badge">
-                                        <i class="fas fa-chart-line"></i>
-                                        文本向量相似度：${(result.similarity * 100).toFixed(1)}%
-                                    </span>
-                                    <button class="btn btn-outline-info btn-sm ms-2" onclick="showSelectorInfer(this, ${index})">原因</button>
-                                </div>
-                                <div class="candidate-analysis" id="selector-infer-${index}" style="display:none;"></div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-            
-            // 在渲染详细结果前，将filteredResults存到window.searchResults
-            window.searchResults = filteredResults;
-            
             // 添加详细结果（显示selector筛选后的结果）
-            filteredResults.forEach((result, index) => {
+            resultsHtml += filteredResults.map((result, index) => {
                 const cacheKey = result.title;
-                // 按钮和分析内容容器
-                resultsHtml += `
+                return `
                     <div class="result-item">
                         <div class="paper-info">
                             <h3 style="cursor:pointer; color:#2563eb;" onclick="togglePaperDetail(${index})">
@@ -1053,32 +1181,133 @@
                                 <div class="citation-section-title">引用分析</div>
                                 <button class="btn btn-outline-primary btn-sm mb-2" onclick="analyzePaperOnClick(this, '${encodeURIComponent(query)}', ${index})" data-paper-index="${index}">分析引用关系</button>
                                 <div class="citation-content" id="citation-analysis-${index}" style="display:none;"></div>
+                                <!-- 新增：引用分析对话区 -->
+                                <div class="citation-chat-section">
+                                    <div class="citation-chat-title">引用分析对话</div>
+                                    <button class="btn btn-outline-success btn-sm mb-2" onclick="toggleCitationChat(${index})" data-paper-index="${index}">继续引用对话</button>
+                                    <div class="citation-chat-content" id="citation-chat-${index}" style="display:none;">
+                                        <div class="citation-chat-messages" id="citation-chat-messages-${index}"></div>
+                                        <div class="citation-chat-input-container">
+                                            <textarea class="citation-chat-input" id="citation-chat-input-${index}" placeholder="输入您的引用相关问题..." rows="2" onkeydown="handleCitationChatKeyDown(event, ${index})"></textarea>
+                                            <button class="citation-chat-send-btn" onclick="sendCitationMessage(${index})">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <div class="pdf-section">
+                            <div class="pdf-section-title">PDF文件</div>
+                            <div class="pdf-content" id="pdf-content-${index}">
+                                ${result.pdf_file_path ? `<a href="javascript:void(0)" onclick="viewPDF(${result.id})" class="btn btn-link btn-sm">查看当前PDF</a>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
+                            </div>
+                        </div>
+                            </div>
+                        </div>
                     </div>
                 `;
-            });
-            
+            }).join('');
             resultsDiv.innerHTML = resultsHtml;
+
+            // 候选论文列表渲染到最下方新容器
+            const candidatePapersRoot = document.getElementById('candidate-papers-root');
+            // 兼容candidates为对象或数组
+            let candidateArr = [];
+            if (Array.isArray(candidates)) {
+                candidateArr = candidates;
+            } else if (typeof candidates === 'object' && candidates !== null) {
+                candidateArr = Object.values(candidates);
+            }
+            // 调试输出
+            console.log('candidates in displayResults:', candidates, Array.isArray(candidates), candidateArr.length);
+            if(candidatePapersRoot) {
+                candidatePapersRoot.innerHTML = `
+                    <div style="background:#ffe0e0;padding:20px;margin:20px 0;">候选论文测试渲染</div>
+                    <div class="candidate-papers-container" style="margin-top: 40px;">
+                        <div class="candidate-papers mb-4">
+                            <div class="candidate-header">
+                                <h3>候选论文列表</h3>
+                            </div>
+                            <div class="candidate-list" id="candidateList" style="display:block;">
+                                ${(candidateArr.length > 0) ? candidateArr.map((result, index) => `
+                                    <div class="candidate-item">
+                                        <div class="candidate-title">
+                                            <span class="candidate-number">${index + 1}.</span>
+                                            <span class="candidate-text">${result.title}</span>
+                                        </div>
+                                        <div class="candidate-scores">
+                                            <span class="score-badge">
+                                                <i class="fas fa-chart-line"></i>
+                                                文本向量相似度：${(result.similarity * 100).toFixed(1)}%
+                                            </span>
+                                            <button class="btn btn-outline-info btn-sm ms-2" onclick="showSelectorInfer(this, ${index})">原因</button>
+                                        </div>
+                                        <div class="candidate-analysis" id="selector-infer-${index}" style="display:none;"></div>
+                                    </div>
+                                `).join('') : '<div style=\"color:red;\">没有候选论文数据</div>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            // 新增：无论主区如何，最下方独立展示全部候选论文
+            const allCandidatesRoot = document.getElementById('all-candidates-list');
+            if (allCandidatesRoot) {
+                allCandidatesRoot.innerHTML = `
+                    <div class="candidate-papers-container" style="margin-top: 40px;">
+                        <div class="candidate-papers mb-4">
+                            <div class="candidate-header">
+                                <h3>全部候选论文（前50条）</h3>
+                            </div>
+                            <div class="candidate-list" style="display:block;">
+                                ${(candidateArr.length > 0) ? candidateArr.map((result, index) => `
+                                    <div class="candidate-item">
+                                        <div class="candidate-title">
+                                            <span class="candidate-number">${index + 1}.</span>
+                                            <span class="candidate-text">${result.title}</span>
+                                        </div>
+                                        <div class="candidate-scores">
+                                            <span class="score-badge">
+                                                <i class="fas fa-chart-line"></i>
+                                                文本向量相似度：${(result.similarity * 100).toFixed(1)}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                `).join('') : '<div style="color:red;">没有候选论文数据</div>'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
         }
 
-        // 获取查询等级类型描述
-        function getQueryLevelType(level) {
-            const types = {
-                0: '原始',
-                1: '最宽泛',
-                2: '适中',
-                3: '最具体'
-            };
-            return types[level] || '';
+
+
+        // 通用函数：获取论文数据
+        function getPaperData(index) {
+            if (window.realtimeLevelPapers && window.realtimeLevelPapers[window.currentQueryLevel]) {
+                // 实时搜索模式
+                return window.realtimeLevelPapers[window.currentQueryLevel][index];
+            } else if (window.searchResults) {
+                // 传统搜索模式
+                return window.searchResults[index];
+            } else {
+                console.error('无法找到论文数据');
+                return null;
+            }
         }
 
         // 新增分析按钮点击函数
         function analyzePaperOnClick(btn, query, index) {
             const paperIndex = btn.getAttribute('data-paper-index');
-            const paper = window.searchResults[paperIndex];
+            const paper = getPaperData(paperIndex);
+            
+            if (!paper) {
+                console.error('论文数据为空');
+                return;
+            }
+            
             const analysisDiv = document.getElementById(`citation-analysis-${index}`);
             if (analysisDiv.style.display === 'block') {
                 analysisDiv.style.display = 'none';
@@ -1171,7 +1400,7 @@
         function showSelectorInfer(btn, index) {
             const searchInput = document.getElementById('searchInput');
             const query = searchInput.value.trim();
-            const candidate = cachedResults.results[`level_${currentQueryLevel}`].candidates[index];
+            const candidate = cachedResults.results['level_0'].candidates[index];
             const analysisDiv = document.getElementById(`selector-infer-${index}`);
             if (analysisDiv.style.display === 'block') {
                 analysisDiv.style.display = 'none';
@@ -1196,7 +1425,7 @@
                 body: JSON.stringify({ 
                     query: query, 
                     paper: candidate,
-                    query_level: currentQueryLevel,
+                    query_level: 0,
                     queries: cachedResults.queries
                 })
             })
@@ -1218,7 +1447,9 @@
             const examples = [
                 'Show me research on neural architecture search methods with differentiable approach.',
                 'Give me papers about anomaly detection techniques.',
-                'Give me papers about anomaly detection that focus on industrial data.'
+                'Give me papers about anomaly detection that focus on industrial data.',
+                '请推荐一些关于深度学习在自然语言处理中的应用研究。',
+                '查找关于计算机视觉中目标检测技术的最新研究论文。'
             ];
             document.getElementById('searchInput').value = examples[idx];
         }
@@ -1226,12 +1457,23 @@
         function togglePaperDetail(index) {
             const detailDiv = document.getElementById(`paper-detail-${index}`);
             const icon = document.getElementById(`toggle-icon-${index}`);
+            const titleElement = detailDiv.closest('.result-item').querySelector('h3 span');
+            const paperTitle = titleElement ? titleElement.textContent.trim() : '';
+            
             if (detailDiv.style.display === 'none') {
                 detailDiv.style.display = 'block';
                 icon.textContent = '▲';
+                // 添加到展开状态
+                if (paperTitle) {
+                    window.expandedPapers.add(paperTitle);
+                }
             } else {
                 detailDiv.style.display = 'none';
                 icon.textContent = '▼';
+                // 从展开状态中移除
+                if (paperTitle) {
+                    window.expandedPapers.delete(paperTitle);
+                }
             }
         }
 
@@ -1283,6 +1525,629 @@
             searchInput.value = this.textContent;
             document.getElementById('spellingSuggestion').style.display = 'none';
         });
+
+        // PDF相关函数
+        function checkPdfAvailability(index) {
+            const paper = getPaperData(index);
+            if (!paper) {
+                console.error('论文数据为空');
+                return;
+            }
+            
+            const pdfInfoDiv = document.getElementById(`pdf-info-${index}`);
+            const pdfBtn = document.getElementById(`pdf-btn-${index}`);
+            
+            // 显示加载状态
+            pdfInfoDiv.innerHTML = `
+                <div style="text-align: center; padding: 1rem;">
+                    <div class="spinner-border spinner-border-sm" style="color: #28a745;"></div>
+                    <span style="margin-left: 0.5rem; color: #28a745;">正在检查PDF可用性...</span>
+                </div>
+            `;
+            pdfInfoDiv.style.display = 'block';
+            
+            // 获取论文ID
+            const paperId = paper.id || (index + 1); // 使用实际ID或索引作为备选
+            
+            fetch(`/get_pdf_info/${paperId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        pdfInfoDiv.innerHTML = `
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i> ${data.error}
+                            </div>
+                        `;
+                    } else if (data.has_pdf) {
+                        const fileSizeMB = (data.file_size / (1024 * 1024)).toFixed(2);
+                        pdfInfoDiv.innerHTML = `
+                            <div class="alert alert-success">
+                                <i class="fas fa-check-circle"></i> PDF文件可用 (${fileSizeMB} MB)
+                                <div style="margin-top: 1rem;">
+                                    <button class="btn btn-primary btn-sm" onclick="viewPdf(${paperId})">
+                                        <i class="fas fa-eye"></i> 查看当前PDF
+                                    </button>
+                                    <button class="btn btn-secondary btn-sm ms-2" onclick="downloadPdf(${paperId})">
+                                        <i class="fas fa-download"></i> 下载PDF
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        pdfInfoDiv.innerHTML = `
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i> 暂无PDF文件
+                                <div style="margin-top: 1rem;">
+                                    <div class="pdf-upload-form" id="upload-form-${index}">
+                                        <p><i class="fas fa-cloud-upload-alt"></i> 上传PDF文件</p>
+                                        <input type="file" id="pdf-file-${index}" accept=".pdf" style="display: none;" onchange="uploadPdf(${index}, ${paperId})">
+                                        <button class="btn btn-outline-success btn-sm" onclick="document.getElementById('pdf-file-${index}').click()">
+                                            <i class="fas fa-upload"></i> 选择文件
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    pdfInfoDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-times-circle"></i> 检查失败: ${error}
+                        </div>
+                    `;
+                });
+        }
+
+        function viewPdf(paperId) {
+            // 先请求后端获取PDF的预签名URL
+            fetch(`/get_pdf_url/${paperId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.url) {
+                        window.open(data.url, '_blank');
+                    } else {
+                        alert('获取PDF链接失败: ' + (data.error || '未知错误'));
+                    }
+                })
+                .catch(error => {
+                    alert('获取PDF链接失败: ' + error);
+                });
+        }
+
+        function downloadPdf(paperId) {
+            // 下载PDF文件
+            const link = document.createElement('a');
+            link.href = `/download_pdf/${paperId}`;
+            link.download = `paper_${paperId}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function uploadPdf(index, paperId) {
+            const fileInput = document.getElementById(`pdf-file-${index}`);
+            const file = fileInput.files[0];
+            const pdfInfoDiv = document.getElementById(`pdf-info-${index}`);
+            
+            if (!file) {
+                alert('请选择PDF文件');
+                return;
+            }
+            
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                alert('请选择PDF格式的文件');
+                return;
+            }
+            
+            // 显示上传进度
+            pdfInfoDiv.innerHTML = `
+                <div style="text-align: center; padding: 1rem;">
+                    <div class="spinner-border spinner-border-sm" style="color: #28a745;"></div>
+                    <span style="margin-left: 0.5rem; color: #28a745;">正在上传PDF文件...</span>
+                </div>
+            `;
+            
+            const formData = new FormData();
+            formData.append('pdf_file', file);
+            formData.append('paper_id', paperId);
+            
+            fetch('/upload_pdf', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    pdfInfoDiv.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> PDF文件上传成功！
+                            <div style="margin-top: 1rem;">
+                                <button class="btn btn-primary btn-sm" onclick="viewPdf(${paperId})">
+                                    <i class="fas fa-eye"></i> 查看当前PDF
+                                </button>
+                                <button class="btn btn-secondary btn-sm ms-2" onclick="downloadPdf(${paperId})">
+                                    <i class="fas fa-download"></i> 下载PDF
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    pdfInfoDiv.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-times-circle"></i> 上传失败: ${data.error}
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                pdfInfoDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle"></i> 上传失败: ${error}
+                    </div>
+                `;
+            });
+        }
+
+        // 论文对话相关函数
+        let paperChats = {}; // 存储每篇论文的对话历史
+
+        function togglePaperChat(index) {
+            const chatDiv = document.getElementById(`paper-chat-${index}`);
+            const button = event.target;
+            
+            if (chatDiv.style.display === 'none') {
+                chatDiv.style.display = 'block';
+                button.textContent = '收起对话';
+                
+                // 如果是第一次打开，初始化对话
+                if (!paperChats[index]) {
+                    initializePaperChat(index);
+                }
+            } else {
+                chatDiv.style.display = 'none';
+                button.textContent = '继续对话';
+            }
+        }
+
+        function initializePaperChat(index) {
+            const paper = getPaperData(index);
+            if (!paper) {
+                console.error('论文数据为空');
+                return;
+            }
+            
+            const messagesDiv = document.getElementById(`chat-messages-${index}`);
+            
+            // 初始化对话历史
+            paperChats[index] = {
+                paper: paper,
+                messages: [],
+                conversationId: null
+            };
+            
+            // 添加欢迎消息
+            const welcomeMessage = `您好！我是您的论文助手。我正在分析论文《${paper.title}》。您可以问我关于这篇论文的任何问题，比如研究方法、主要贡献、适用场景等。`;
+            
+            addPaperChatMessage(index, 'assistant', welcomeMessage);
+        }
+
+        function addPaperChatMessage(index, role, content) {
+            const messagesDiv = document.getElementById(`chat-messages-${index}`);
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${role}`;
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'chat-message-content';
+            contentDiv.textContent = content;
+            
+            messageDiv.appendChild(contentDiv);
+            messagesDiv.appendChild(messageDiv);
+            
+            // 滚动到底部
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // 保存到对话历史
+            if (paperChats[index]) {
+                paperChats[index].messages.push({ role, content });
+            }
+        }
+
+        function sendPaperMessage(index) {
+            const input = document.getElementById(`chat-input-${index}`);
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // 添加用户消息
+            addPaperChatMessage(index, 'user', message);
+            input.value = '';
+            
+            // 显示打字指示器
+            const messagesDiv = document.getElementById(`chat-messages-${index}`);
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'chat-typing show';
+            typingDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI正在思考中...';
+            messagesDiv.appendChild(typingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            // 发送到后端
+            const paper = getPaperData(index);
+            if (!paper) {
+                console.error('论文数据为空');
+                return;
+            }
+            fetch('/paper_chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    paper_index: index,
+                    paper: paper,
+                    message: message,
+                    conversation_history: paperChats[index] ? paperChats[index].messages : []
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 移除打字指示器
+                messagesDiv.removeChild(typingDiv);
+                
+                if (data.success) {
+                    addPaperChatMessage(index, 'assistant', data.response);
+                } else {
+                    addPaperChatMessage(index, 'assistant', '抱歉，我暂时无法回答您的问题。请重试。');
+                }
+            })
+            .catch(error => {
+                // 移除打字指示器
+                messagesDiv.removeChild(typingDiv);
+                addPaperChatMessage(index, 'assistant', '发送消息失败，请重试。');
+                console.error('发送消息失败:', error);
+            });
+        }
+
+        // 处理回车键发送消息
+        function handlePaperChatKeyDown(event, index) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendPaperMessage(index);
+            }
+        }
+
+        let citationChats = {};
+
+        function toggleCitationChat(index) {
+            const chatDiv = document.getElementById(`citation-chat-${index}`);
+            const button = event.target;
+            if (chatDiv.style.display === 'none') {
+                chatDiv.style.display = 'block';
+                button.textContent = '收起引用对话';
+                if (!citationChats[index]) {
+                    initializeCitationChat(index);
+                }
+            } else {
+                chatDiv.style.display = 'none';
+                button.textContent = '继续引用对话';
+            }
+        }
+
+        function initializeCitationChat(index) {
+            const paper = getPaperData(index);
+            if (!paper) {
+                console.error('论文数据为空');
+                return;
+            }
+            
+            const messagesDiv = document.getElementById(`citation-chat-messages-${index}`);
+            const query = document.getElementById('searchInput').value.trim();
+            citationChats[index] = {
+                paper: paper,
+                query: query,
+                messages: []
+            };
+            const welcomeMessage = `您好！这里是引用分析对话区。您可以就引用建议、对比、创新点等继续提问。`;
+            addCitationChatMessage(index, 'assistant', welcomeMessage);
+        }
+
+        function addCitationChatMessage(index, role, content) {
+            const messagesDiv = document.getElementById(`citation-chat-messages-${index}`);
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `citation-chat-message ${role}`;
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'citation-chat-message-content';
+            contentDiv.textContent = content;
+            messageDiv.appendChild(contentDiv);
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            if (citationChats[index]) {
+                citationChats[index].messages.push({ role, content });
+            }
+        }
+
+        function sendCitationMessage(index) {
+            const input = document.getElementById(`citation-chat-input-${index}`);
+            const message = input.value.trim();
+            if (!message) return;
+            
+            addCitationChatMessage(index, 'user', message);
+            input.value = '';
+            
+            const messagesDiv = document.getElementById(`citation-chat-messages-${index}`);
+            const paper = getPaperData(index);
+            const query = document.getElementById('searchInput').value.trim();
+            
+            if (!paper) {
+                console.error('论文数据为空');
+                return;
+            }
+            
+            // 创建流式响应容器
+            const streamingDiv = document.createElement('div');
+            streamingDiv.className = 'citation-chat-message assistant';
+            const streamingContentDiv = document.createElement('div');
+            streamingContentDiv.className = 'citation-chat-message-content';
+            streamingContentDiv.innerHTML = '<div class="streaming-content"><span class="cursor">|</span></div>';
+            streamingDiv.appendChild(streamingContentDiv);
+            messagesDiv.appendChild(streamingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+
+            
+            // 发送流式请求
+            fetch('/citation_chat_stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: query,
+                    paper: paper,
+                    message: message,
+                    conversation_history: citationChats[index] ? citationChats[index].messages : []
+                })
+            })
+            .then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                
+                function readStream() {
+                    return reader.read().then(({ done, value }) => {
+                        if (done) {
+                            // 完成时保存到对话历史
+                            const finalContent = streamingContentDiv.textContent;
+                            if (citationChats[index]) {
+                                citationChats[index].messages.push({ role: 'assistant', content: finalContent });
+                            }
+                            return;
+                        }
+                        
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop(); // 保留不完整的行
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.content) {
+                                        // 添加内容
+                                        const contentElement = streamingContentDiv.querySelector('.streaming-content');
+                                        if (contentElement) {
+                                            contentElement.textContent += data.content;
+                                        } else {
+                                            streamingContentDiv.textContent += data.content;
+                                        }
+                                        
+                                        // 滚动到底部
+                                        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                                    } else if (data.error) {
+                                        streamingContentDiv.innerHTML = `<span style="color: red;">${data.error}</span>`;
+                                    } else if (data.done) {
+                                        // 显示PDF内容状态
+                                        if (data.has_pdf_content) {
+                                            const pdfStatusDiv = document.createElement('div');
+                                            pdfStatusDiv.style.cssText = 'font-size: 12px; color: #666; margin-top: 8px; font-style: italic;';
+                                            pdfStatusDiv.innerHTML = '📄 基于PDF内容进行分析';
+                                            streamingContentDiv.appendChild(pdfStatusDiv);
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error('解析流数据失败:', e);
+                                }
+                            }
+                        }
+                        
+                        return readStream();
+                    });
+                }
+                
+                return readStream();
+            })
+            .catch(error => {
+                streamingContentDiv.innerHTML = '<span style="color: red;">发送消息失败，请重试。</span>';
+                console.error('发送消息失败:', error);
+            });
+        }
+
+        function handleCitationChatKeyDown(event, index) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendCitationMessage(index);
+            }
+        }
+
+        // 添加CSS动画
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInFromTop {
+                0% {
+                    opacity: 0;
+                    transform: translateY(-20px);
+                }
+                100% {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // 实时推送缓存
+        window.realtimeLevelSessions = {}; // { level: session_id }
+        window.realtimeLevelPapers = {};   // { level: [paper, ...] }
+        window.currentQueryLevel = 0;
+        // 添加展开状态跟踪
+        window.expandedPapers = new Set(); // 存储已展开论文的ID
+
+        // WebSocket监听realtime_papers事件，收到后累加并渲染
+        socket.on('realtime_papers', function(data) {
+            console.log('收到realtime_papers事件:', data);
+            // 处理查询结果
+            if (data.session_id === window.realtimeLevelSessions[0]) {
+                if (!window.realtimeLevelPapers[0]) window.realtimeLevelPapers[0] = [];
+                window.realtimeLevelPapers[0].push(...data.papers);
+                // 只有一个等级
+                if (window.currentQueryLevel === 0) {
+                    renderLevelPapers(0);
+                }
+            }
+        });
+        // WebSocket监听search_completed事件，更新状态栏
+        socket.on('search_completed', function(data) {
+            console.log('收到search_completed事件:', data);
+            // 处理查询结果
+            if (data.session_id === window.realtimeLevelSessions[0]) {
+                // 标记查询已完成
+                if (window.realtimeLevelPapers[0]) {
+                    window.realtimeLevelPapers[0]._completed = true;
+                }
+                // 只有一个等级
+                if (window.currentQueryLevel === 0) {
+                    const statusBar = document.getElementById('realtime-status-bar');
+                    if (statusBar) {
+                        const currentPapers = window.realtimeLevelPapers[0] || [];
+                        statusBar.innerHTML = `<i class=\"fas fa-check-circle\" style=\"color:#28a745;font-size:1.5rem;margin-right:8px;\"></i>搜索完成，共找到${currentPapers.length}篇高评分论文`;
+                    }
+                    // 隐藏loading
+                    const loading = document.getElementById('realtime-loading');
+                    if (loading) loading.style.display = 'none';
+                }
+            }
+        });
+
+        // WebSocket监听search_error事件，处理错误
+        socket.on('search_error', function(data) {
+            console.error('搜索错误事件:', data);
+            // 处理查询错误
+            if (data.session_id === window.realtimeLevelSessions[0]) {
+                if (window.currentQueryLevel === 0) {
+                    const statusBar = document.getElementById('realtime-status-bar');
+                    const loading = document.getElementById('realtime-loading');
+                    if (statusBar) {
+                        statusBar.innerHTML = `<i class=\"fas fa-exclamation-triangle\" style=\"color:#dc3545;font-size:1.5rem;margin-right:8px;\"></i>搜索出错: ${data.error}`;
+                    }
+                    if (loading) loading.style.display = 'none';
+                }
+            }
+        });
+
+        function renderLevelPapers(level) {
+            const papers = window.realtimeLevelPapers[level] || [];
+            const container = document.getElementById('realtime-papers-container');
+            const query = document.getElementById('searchInput').value.trim();
+            
+            // 保存当前展开状态
+            const currentExpanded = new Set();
+            const existingDetails = container.querySelectorAll('.paper-detail');
+            existingDetails.forEach((detail, index) => {
+                if (detail.style.display !== 'none') {
+                    // 使用论文标题作为唯一标识符
+                    const titleElement = detail.closest('.result-item').querySelector('h3 span');
+                    if (titleElement) {
+                        currentExpanded.add(titleElement.textContent.trim());
+                    }
+                }
+            });
+            
+            // 更新全局展开状态
+            currentExpanded.forEach(title => window.expandedPapers.add(title));
+            
+            // 按大模型理解相关度（select_score）降序排序
+            const sortedPapers = [...papers].sort((a, b) => {
+                const scoreA = a.select_score || 0;
+                const scoreB = b.select_score || 0;
+                return scoreB - scoreA; // 降序排列，相关度高的在前面
+            });
+            
+            container.innerHTML = '';
+            sortedPapers.forEach((result, i) => {
+                container.insertAdjacentHTML('beforeend', renderPaperCard(result, i, query));
+            });
+            
+            // 恢复展开状态
+            sortedPapers.forEach((result, i) => {
+                if (window.expandedPapers.has(result.title.trim())) {
+                    const detailDiv = document.getElementById(`paper-detail-${i}`);
+                    const icon = document.getElementById(`toggle-icon-${i}`);
+                    if (detailDiv && icon) {
+                        detailDiv.style.display = 'block';
+                        icon.textContent = '▲';
+                    }
+                }
+            });
+            
+            // 处理loading和状态栏
+            const loading = document.getElementById('realtime-loading');
+            const statusBar = document.getElementById('realtime-status-bar');
+            
+            if (sortedPapers.length > 0) {
+                // 有论文时隐藏loading
+                if (loading) loading.style.display = 'none';
+                
+                // 如果该等级已完成，显示完成状态
+                if (window.realtimeLevelPapers[level] && window.realtimeLevelPapers[level]._completed) {
+                    if (statusBar) {
+                        statusBar.innerHTML = `<i class=\"fas fa-check-circle\" style=\"color:#28a745;font-size:1.5rem;margin-right:8px;\"></i>搜索完成，共找到${sortedPapers.length}篇高评分论文`;
+                    }
+                } else {
+                    // 未完成时显示进行中状态
+                    if (statusBar) {
+                        statusBar.innerHTML = `<i class=\"fas fa-spinner fa-spin\" style=\"color:#2563eb;font-size:1.5rem;margin-right:8px;\"></i><span id=\"realtime-status\">实时搜索进行中...</span>`;
+                    }
+                }
+            } else {
+                // 没有论文时显示loading
+                if (loading) loading.style.display = 'block';
+            }
+            
+
+        }
+
+
+
+        // 删除重复的空实现，保留上面有fetch的正确实现
+        
+        // PDF查看函数
+        function viewPDF(paperId) {
+            // 统一为异步获取预签名URL
+            fetch(`/get_pdf_url/${paperId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.url) {
+                        window.open(data.url, '_blank');
+                    } else {
+                        alert('获取PDF链接失败: ' + (data.error || '未知错误'));
+                    }
+                })
+                .catch(error => {
+                    alert('获取PDF链接失败: ' + error);
+                });
+        }
     </script>
+
+
+
+
 </body>
 </html>

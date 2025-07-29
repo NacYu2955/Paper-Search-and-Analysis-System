@@ -142,12 +142,15 @@
 <body>
     <!-- 导航栏 -->
     <nav class="navbar" style="margin-bottom:2rem;">
-        <div class="container" style="max-width:1200px;">
-            <a href="/" class="navbar-brand">论文搜索系统</a>
-            <div class="nav-links">
-                <a href="/" class="nav-link">搜索</a>
-                <a href="/upload" class="nav-link active">新论文入库</a>
-                <a href="/admin" class="nav-link">查看论文库</a>
+        <div class="container" style="max-width:1200px; display: flex; align-items: center; justify-content: space-between; padding-left: 0;">
+            <a href="/" class="navbar-brand" style="display: flex; align-items: center; margin-left: 0;">
+                <img src="/static/logo.png" alt="Logo" style="height: 48px; margin-right: 10px;">
+                论文搜索系统
+            </a>
+            <div class="nav-links" style="display: flex; gap: 1.5rem;">
+            <a href="/" class="nav-link">搜索</a>
+            <a href="/upload" class="nav-link active">新论文入库</a>
+            <a href="/admin" class="nav-link">查看论文库</a>
             </div>
         </div>
     </nav>
@@ -155,7 +158,7 @@
     <div class="container">
         <div class="upload-container">
             <h1 class="upload-title">新论文入库</h1>
-            <form id="uploadForm">
+            <form id="uploadForm" enctype="multipart/form-data">
                 <div class="mb-3">
                     <label for="bibtex" class="form-label">BibTeX格式</label>
                     <textarea class="form-control" id="bibtex" name="bibtex" rows="6" required placeholder="请输入BibTeX格式的论文信息，例如：&#10;@article{yang2019evaluation,&#10;  title={NAS evaluation is frustratingly hard},&#10;  author={Yang, Antoine and Esperan{\c{c}}a, Pedro M and Carlucci, Fabio M},&#10;  journal={arXiv preprint arXiv:1912.12522},&#10;  year={2019}&#10;}"></textarea>
@@ -164,53 +167,218 @@
                     <label for="abstract" class="form-label">摘要</label>
                     <textarea class="form-control" id="abstract" name="abstract" rows="4" required></textarea>
                 </div>
+                <div class="mb-3">
+                    <label for="pdf_file" class="form-label">上传PDF文件</label>
+                    <input type="file" class="form-control" id="pdf_file" name="pdf_file" accept=".pdf" required>
+                    <div id="pdf-upload-progress" style="display: none; margin-top: 10px;">
+                        <div class="progress" style="height: 20px; border-radius: 10px; background-color: #e9ecef;">
+                            <div id="pdf-progress-bar" class="progress-bar" role="progressbar" style="width: 0%; background-color: #2563eb; border-radius: 10px; transition: width 0.3s ease;"></div>
+                        </div>
+                        <div id="pdf-progress-text" style="text-align: center; margin-top: 5px; font-size: 0.9rem; color: #6c757d;">准备上传...</div>
+                    </div>
+                </div>
                 <button type="submit" class="btn-submit">提交论文</button>
             </form>
             <div id="alertContainer"></div>
         </div>
     </div>
 
+    <!-- 主要COS SDK引用 -->
+    <script src="https://cdn.jsdelivr.net/npm/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js"></script>
+    <!-- 备用COS SDK引用，如果主要CDN失败 -->
     <script>
+        if (typeof COS === 'undefined') {
+            console.log('主要COS SDK加载失败，尝试备用CDN...');
+            const script = document.createElement('script');
+            script.src = 'https://unpkg.com/cos-js-sdk-v5/dist/cos-js-sdk-v5.min.js';
+            script.onload = function() {
+                console.log('备用COS SDK加载成功');
+            };
+            script.onerror = function() {
+                console.error('备用COS SDK也加载失败');
+            };
+            document.head.appendChild(script);
+        }
+    </script>
+    <script>
+        // === 自动填充COS配置 ===
+        const COS_BUCKET_NAME = "pasa-v1-1354374320";
+        const COS_REGION = "ap-guangzhou";
+        const COS_FOLDER = "pdfs";
+        let cosUploadFileName = null;
+        let cosUploadSuccess = false;
+        
+        // 检查COS SDK是否加载成功
+        if (typeof COS === 'undefined') {
+            console.error('COS SDK 未加载成功，请检查网络连接');
+            // 如果COS SDK加载失败，禁用上传功能
+            document.addEventListener('DOMContentLoaded', function() {
+                const fileInput = document.getElementById('pdf_file');
+                const submitButton = document.querySelector('.btn-submit');
+                if (fileInput) fileInput.disabled = true;
+                if (submitButton) {
+                    submitButton.disabled = true;
+                    submitButton.innerHTML = 'COS SDK加载失败';
+                }
+                alert('COS SDK加载失败，请刷新页面重试');
+            });
+        }
+        // PDF文件选择事件
+        document.getElementById('pdf_file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const submitButton = document.querySelector('.btn-submit');
+            const progressContainer = document.getElementById('pdf-upload-progress');
+            
+            if (!file) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '提交论文';
+                progressContainer.style.display = 'none';
+                cosUploadFileName = null;
+                cosUploadSuccess = false;
+                return;
+            }
+            
+            // 检查文件格式
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext !== 'pdf') {
+                alert('请选择PDF格式的文件');
+                e.target.value = '';
+                submitButton.disabled = true;
+                submitButton.innerHTML = '提交论文';
+                progressContainer.style.display = 'none';
+                cosUploadFileName = null;
+                cosUploadSuccess = false;
+                return;
+            }
+            
+            // 文件选择成功，启用提交按钮
+            submitButton.disabled = false;
+            submitButton.innerHTML = '提交论文';
+            progressContainer.style.display = 'none';
+            cosUploadFileName = null;
+            cosUploadSuccess = false;
+        });
+        // 表单提交事件
         document.getElementById('uploadForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const formData = {
-                bibtex: document.getElementById('bibtex').value,
-                abstract: document.getElementById('abstract').value
-            };
-
+            const fileInput = document.getElementById('pdf_file');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('请选择PDF文件');
+                return;
+            }
+            
+            const form = document.getElementById('uploadForm');
+            const submitButton = form.querySelector('button[type="submit"]');
+            const alertContainer = document.getElementById('alertContainer');
+            const progressContainer = document.getElementById('pdf-upload-progress');
+            const progressBar = document.getElementById('pdf-progress-bar');
+            const progressText = document.getElementById('pdf-progress-text');
+            
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 上传中...';
+            alertContainer.innerHTML = '';
+            
             try {
+                // 显示进度条
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                progressText.textContent = '准备上传...';
+                
+                // 生成唯一文件名
+                const uuid = URL.createObjectURL(new Blob()).split('/').pop();
+                const cosFileName = uuid + '.pdf';
+                cosUploadFileName = cosFileName;
+                
+                // 获取临时密钥
+                let stsResp = await fetch('/cos_sts_token');
+                let stsData = await stsResp.json();
+                
+                if (!stsData.credentials) {
+                    throw new Error('获取COS临时密钥失败');
+                }
+                
+                const credentials = stsData.credentials;
+                
+                // 检查COS SDK是否可用
+                if (typeof COS === 'undefined') {
+                    throw new Error('COS SDK 未加载，请刷新页面重试');
+                }
+                
+                // 初始化COS SDK
+                const cos = new COS({
+                    getAuthorization: function (options, callback) {
+                        callback({
+                            TmpSecretId: credentials.tmpSecretId,
+                            TmpSecretKey: credentials.tmpSecretKey,
+                            SecurityToken: credentials.sessionToken || '',
+                            XCosSecurityToken: credentials.sessionToken || '',
+                            StartTime: stsData.startTime,
+                            ExpiredTime: stsData.expiredTime
+                        });
+                    }
+                });
+                
+                // 上传到COS
+                await new Promise((resolve, reject) => {
+                    cos.putObject({
+                        Bucket: COS_BUCKET_NAME,
+                        Region: COS_REGION,
+                        Key: COS_FOLDER + "/" + cosFileName,
+                        Body: file,
+                        onProgress: function (progressData) {
+                            const percent = Math.round(progressData.percent * 100);
+                            progressBar.style.width = percent + '%';
+                            progressText.textContent = '上传中... ' + percent + '%';
+                        }
+                    }, function (err, data) {
+                        if (err) {
+                            console.log('上传失败详细信息:', err);
+                            reject(new Error(err.error || err.message || JSON.stringify(err)));
+                        } else {
+                            progressBar.style.width = '100%';
+                            progressText.textContent = '上传完成！';
+                            progressBar.style.backgroundColor = '#28a745';
+                            cosUploadSuccess = true;
+                            resolve(data);
+                        }
+                    });
+                });
+                
+                // 上传成功后，提交论文信息
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
+                
+                const formData = new FormData();
+                formData.append('bibtex', document.getElementById('bibtex').value);
+                formData.append('abstract', document.getElementById('abstract').value);
+                formData.append('pdf_path', cosUploadFileName);
+                
                 const response = await fetch('/submit_paper', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
+                    body: formData
                 });
-
+                
                 const data = await response.json();
-                const alertContainer = document.getElementById('alertContainer');
-
+                
                 if (response.ok) {
-                    alertContainer.innerHTML = `
-                        <div class="alert alert-success">
-                            <i class="fas fa-check-circle"></i> ${data.message}
-                        </div>
-                    `;
-                    document.getElementById('uploadForm').reset();
+                    alertContainer.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle"></i> ${data.message || '论文提交成功！'}</div>`;
+                    form.reset();
+                    cosUploadFileName = null;
+                    cosUploadSuccess = false;
+                    progressContainer.style.display = 'none';
                 } else {
-                    alertContainer.innerHTML = `
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-circle"></i> ${data.error}
-                        </div>
-                    `;
+                    alertContainer.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> ${data.error || '提交失败'}</div>`;
                 }
+                
             } catch (error) {
-                document.getElementById('alertContainer').innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-circle"></i> 提交失败，请稍后重试
-                    </div>
-                `;
+                progressText.textContent = '上传失败: ' + error.message;
+                progressBar.style.backgroundColor = '#dc3545';
+                alertContainer.innerHTML = `<div class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> 操作失败：${error.message}</div>`;
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = '提交论文';
             }
         });
     </script>

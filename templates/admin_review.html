@@ -227,14 +227,22 @@
             font-size: 3rem;
             margin-bottom: 1rem;
         }
+        .pdf-admin-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #eee;
+        }
     </style>
 </head>
 <body>
     <!-- 导航栏 -->
     <nav class="navbar" style="margin-bottom:2rem;">
-        <div class="container" style="max-width:1200px;">
-            <a href="/" class="navbar-brand">论文搜索系统</a>
-            <div class="nav-links">
+        <div class="container" style="max-width:1200px; display: flex; align-items: center; justify-content: space-between; padding-left: 0;">
+            <a href="/" class="navbar-brand" style="display: flex; align-items: center; margin-left: 0;">
+                <img src="/static/logo.png" alt="Logo" style="height: 48px; margin-right: 10px;">
+                论文搜索系统
+            </a>
+            <div class="nav-links" style="display: flex; gap: 1.5rem;">
                 <a href="/" class="nav-link">搜索</a>
                 <a href="/upload" class="nav-link">新论文入库</a>
                 <a href="/admin" class="nav-link">查看论文库</a>
@@ -402,10 +410,21 @@
                         <strong>摘要：</strong>
                         <p>${paper.abstract}</p>
                     </div>
+                    <div class="pdf-admin-section mt-3">
+                        <label class="form-label">PDF文件：</label>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <input type="file" accept=".pdf" id="pdf-upload-${paper.id}" style="max-width:200px;">
+                            <button class="btn btn-outline-primary btn-sm" onclick="uploadAdminPdf(${paper.id})">重新上传PDF</button>
+                            <span id="pdf-status-${paper.id}" style="margin-left:10px;color:#28a745;font-size:0.95em;"></span>
+                            ${paper.pdf_file_path ? `<button onclick="viewPdf(${paper.id})" class="btn btn-link btn-sm">查看当前PDF</button>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
+                        </div>
+                    </div>
                     <div style="margin-top:1rem;">
                         <button class="btn btn-warning btn-sm" onclick="showEditPaperForm(${paper.id})">修改</button>
                         <button class="btn btn-danger btn-sm" onclick="deletePaper(${paper.id})">删除</button>
+                        <button class="btn btn-info btn-sm" onclick="showChangeStatusForm(${paper.id})">修改审核状态</button>
                         <div id="edit-form-${paper.id}" style="display:none;margin-top:1rem;"></div>
+                        <div id="status-form-${paper.id}" style="display:none;margin-top:1rem;"></div>
                     </div>
                 </div>
             `).join('');
@@ -482,9 +501,9 @@
                     }
                 });
             } else {
-                const commentDiv = document.getElementById(`comment-${paperId}`);
-                commentDiv.style.display = 'block';
-                commentDiv.dataset.action = action;
+            const commentDiv = document.getElementById(`comment-${paperId}`);
+            commentDiv.style.display = 'block';
+            commentDiv.dataset.action = action;
             }
         }
 
@@ -533,10 +552,10 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({paper_id: paperId})
             }).then(res => res.json())
-              .then(data => {
-                  alert(data.message);
-                  loadReviewedPapers();
-              });
+            .then(data => {
+                alert(data.message);
+                loadReviewedPapers();
+            });
         }
 
         function showEditPaperForm(paperId) {
@@ -575,11 +594,63 @@
                     doi: document.getElementById('edit-doi-' + paperId).value
                 })
             }).then(res => res.json())
-              .then(data => {
-                  alert(data.message);
-                  hideEditPaperForm(paperId);
-                  loadReviewedPapers();
-              });
+            .then(data => {
+                alert(data.message);
+                hideEditPaperForm(paperId);
+                loadReviewedPapers();
+            });
+        }
+
+        function showChangeStatusForm(paperId) {
+            const paper = window.reviewedPapers.find(p => p.id === paperId);
+            const formDiv = document.getElementById('status-form-' + paperId);
+            const currentStatus = (paper.status === 'approved' || paper.status === 'approve') ? 'approved' : 'rejected';
+            
+            formDiv.innerHTML = `
+                <div class="card card-body mb-2">
+                    <div class="mb-2">
+                        <label class="form-label">当前状态：${currentStatus === 'approved' ? '已通过' : '已拒绝'}</label>
+                        <select class="form-select" id="new-status-${paperId}">
+                            <option value="approved" ${currentStatus === 'approved' ? 'selected' : ''}>通过</option>
+                            <option value="rejected" ${currentStatus === 'rejected' ? 'selected' : ''}>拒绝</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label">审核意见：</label>
+                        <textarea class="form-control" id="new-comment-${paperId}">${paper.review_comment || ''}</textarea>
+                    </div>
+                    <button class="btn btn-success btn-sm" onclick="submitStatusChange(${paperId})">保存修改</button>
+                    <button class="btn btn-secondary btn-sm" onclick="hideStatusForm(${paperId})">取消</button>
+                </div>
+            `;
+            formDiv.style.display = 'block';
+        }
+
+        function hideStatusForm(paperId) {
+            document.getElementById('status-form-' + paperId).style.display = 'none';
+        }
+
+        function submitStatusChange(paperId) {
+            const newStatus = document.getElementById('new-status-' + paperId).value;
+            const newComment = document.getElementById('new-comment-' + paperId).value;
+
+            fetch('/admin/change_paper_status', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    paper_id: paperId,
+                    status: newStatus,
+                    comment: newComment
+                })
+            }).then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                hideStatusForm(paperId);
+                loadReviewedPapers();
+            })
+            .catch(error => {
+                alert('修改状态失败，请重试');
+            });
         }
 
         // 搜索功能
@@ -603,6 +674,7 @@
                     (paper.doi && paper.doi.toLowerCase().includes(keyword))
                 );
             });
+            // 使用和renderReviewedPapersPage一致的卡片模板，包含PDF上传功能
             list.innerHTML = filtered.map((paper, index) => `
                 <div class="paper-card" id="paper-${paper.id}">
                     <h3 class="paper-title">${paper.title}</h3>
@@ -612,42 +684,93 @@
                         <p><strong>期刊/会议：</strong>${paper.journal}</p>
                         <p><strong>提交者：</strong>${paper.submitted_by}</p>
                         <p><strong>提交时间：</strong>${new Date(paper.submitted_at).toLocaleString()}</p>
-                        ${listId === 'pendingPapersList'
-                            ? `<p><strong>状态：</strong><span class="badge bg-warning">待审核</span></p>`
-                            : `<p><strong>状态：</strong>
+                        <p><strong>状态：</strong>
                                 <span class="badge ${(paper.status === 'approved' || paper.status === 'approve') ? 'bg-success' : 'bg-danger'}">
                                     ${(paper.status === 'approved' || paper.status === 'approve') ? '已通过' : '已拒绝'}
                                 </span>
                             </p>
                             <p><strong>审核意见：</strong>${paper.review_comment || '无'}</p>
-                            <p><strong>审核时间：</strong>${paper.reviewed_at ? new Date(paper.reviewed_at).toLocaleString() : '无'}</p>`
-                        }
+                        <p><strong>审核时间：</strong>${paper.reviewed_at ? new Date(paper.reviewed_at).toLocaleString() : '无'}</p>
                     </div>
                     <div class="paper-abstract">
                         <strong>摘要：</strong>
                         <p>${paper.abstract}</p>
                     </div>
-                    ${listId === 'pendingPapersList'
-                        ? `<div class="review-actions">
-                                <button class="btn btn-review btn-approve" onclick="reviewPaper(${paper.id}, 'approve')">
-                                    <i class="fas fa-check"></i> 通过
-                                </button>
-                                <button class="btn btn-review btn-reject" onclick="reviewPaper(${paper.id}, 'reject')">
-                                    <i class="fas fa-times"></i> 拒绝
-                                </button>
+                    <div class="pdf-admin-section mt-3">
+                        <label class="form-label">PDF文件：</label>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <input type="file" accept=".pdf" id="pdf-upload-${paper.id}" style="max-width:200px;">
+                            <button class="btn btn-outline-primary btn-sm" onclick="uploadAdminPdf(${paper.id})">重新上传PDF</button>
+                            <span id="pdf-status-${paper.id}" style="margin-left:10px;color:#28a745;font-size:0.95em;"></span>
+                            ${paper.pdf_file_path ? `<button onclick="viewPdf(${paper.id})" class="btn btn-link btn-sm">查看当前PDF</button>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
+                        </div>
                             </div>
-                            <div class="review-comment" id="comment-${paper.id}">
-                                <textarea class="form-control" placeholder="请输入审核意见（选填）"></textarea>
-                                <button class="btn btn-primary" onclick="submitReview(${paper.id})">提交审核</button>
-                            </div>`
-                        : `<div style="margin-top:1rem;">
+                    <div style="margin-top:1rem;">
                                 <button class="btn btn-warning btn-sm" onclick="showEditPaperForm(${paper.id})">修改</button>
                                 <button class="btn btn-danger btn-sm" onclick="deletePaper(${paper.id})">删除</button>
+                                <button class="btn btn-info btn-sm" onclick="showChangeStatusForm(${paper.id})">修改审核状态</button>
                                 <div id="edit-form-${paper.id}" style="display:none;margin-top:1rem;"></div>
-                            </div>`
-                    }
+                                <div id="status-form-${paper.id}" style="display:none;margin-top:1rem;"></div>
+                    </div>
                 </div>
             `).join('');
+        }
+
+        // 添加JS函数
+        window.uploadAdminPdf = async function(paperId) {
+            const fileInput = document.getElementById(`pdf-upload-${paperId}`);
+            const statusSpan = document.getElementById(`pdf-status-${paperId}`);
+            const file = fileInput.files[0];
+            if (!file) {
+                statusSpan.style.color = '#ef4444';
+                statusSpan.textContent = '请选择PDF文件';
+                return;
+            }
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                statusSpan.style.color = '#ef4444';
+                statusSpan.textContent = '文件格式错误';
+                return;
+            }
+            statusSpan.style.color = '#2563eb';
+            statusSpan.textContent = '正在上传...';
+            const formData = new FormData();
+            formData.append('pdf_file', file);
+            formData.append('paper_id', paperId);
+            try {
+                const res = await fetch('/upload_pdf', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    statusSpan.style.color = '#10b981';
+                    statusSpan.textContent = '上传成功！';
+                    setTimeout(()=>{ statusSpan.textContent = ''; loadReviewedPapers(); }, 1200);
+                } else {
+                    statusSpan.style.color = '#ef4444';
+                    statusSpan.textContent = data.error || '上传失败';
+                }
+            } catch (e) {
+                statusSpan.style.color = '#ef4444';
+                statusSpan.textContent = '上传失败';
+            }
+        }
+
+        window.viewPdf = function(paperId) {
+            // 先请求后端获取PDF的预签名URL
+            fetch(`/get_pdf_url/${paperId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.url) {
+                        // 在新窗口中打开PDF
+                        window.open(data.url, '_blank');
+                    } else {
+                        alert('获取PDF链接失败: ' + (data.error || '未知错误'));
+                    }
+                })
+                .catch(error => {
+                    alert('获取PDF链接失败: ' + error);
+                });
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>

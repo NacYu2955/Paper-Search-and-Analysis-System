@@ -227,17 +227,30 @@
             font-size: 3rem;
             margin-bottom: 1rem;
         }
+        
+        .paper-actions {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .paper-actions .btn {
+            margin-right: 0.5rem;
+        }
     </style>
 </head>
 <body>
     <!-- 导航栏 -->
     <nav class="navbar" style="margin-bottom:2rem;">
-        <div class="container" style="max-width:1200px;">
-            <a href="/" class="navbar-brand">论文搜索系统</a>
-            <div class="nav-links">
-                <a href="/" class="nav-link">搜索</a>
-                <a href="/upload" class="nav-link">新论文入库</a>
-                <a href="/admin" class="nav-link active">查看论文库</a>
+        <div class="container" style="max-width:1200px; display: flex; align-items: center; justify-content: space-between; padding-left: 0;">
+            <a href="/" class="navbar-brand" style="display: flex; align-items: center; margin-left: 0;">
+                <img src="/static/logo.png" alt="Logo" style="height: 48px; margin-right: 10px;">
+                论文搜索系统
+            </a>
+            <div class="nav-links" style="display: flex; gap: 1.5rem;">
+            <a href="/" class="nav-link">搜索</a>
+            <a href="/upload" class="nav-link">新论文入库</a>
+            <a href="/admin" class="nav-link active">查看论文库</a>
             </div>
         </div>
     </nav>
@@ -359,6 +372,12 @@
                         <strong>摘要：</strong>
                         <p>${paper.abstract}</p>
                     </div>
+                    <div class="paper-actions">
+                        ${paper.pdf_file_path ? 
+                            `<button onclick="viewPdf(${paper.id})" class="btn btn-sm btn-primary">查看PDF</button>` : 
+                            `<span class="text-muted">暂无PDF</span>`
+                        }
+                    </div>
                 </div>
             `).join('');
         }
@@ -412,6 +431,12 @@
                     <div class="paper-abstract">
                         <strong>摘要：</strong>
                         <p>${paper.abstract}</p>
+                    </div>
+                    <div class="paper-actions">
+                        ${paper.pdf_file_path ? 
+                            `<button onclick="viewPdf(${paper.id})" class="btn btn-success btn-sm"><i class='fas fa-file-pdf'></i> 查看PDF</button>` : 
+                            `<span class="text-muted">暂无PDF</span>`
+                        }
                     </div>
                 </div>
             `).join('');
@@ -502,6 +527,23 @@
                 );
             }
             renderReviewedPapersPage(filtered, reviewedCurrentPage, reviewedPageSize);
+        }
+
+        function viewPdf(paperId) {
+            // 先请求后端获取PDF的预签名URL
+            fetch(`/get_pdf_url/${paperId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.url) {
+                        // 在新窗口中打开PDF
+                        window.open(data.url, '_blank');
+                    } else {
+                        alert('获取PDF链接失败: ' + (data.error || '未知错误'));
+                    }
+                })
+                .catch(error => {
+                    alert('获取PDF链接失败: ' + error);
+                });
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
