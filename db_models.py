@@ -66,6 +66,9 @@ class PaperSubmission(db.Model):
     pages = db.Column(db.String(50))
     publisher = db.Column(db.String(200))
     citations = db.Column(db.Text)               # 原始citations字段，JSON字符串
+    pdf_file_path = db.Column(db.String(500))    # PDF文件路径
+    cos_key = db.Column(db.String(500))          # COS中的文件键
+    cos_url = db.Column(db.String(500))          # COS文件的访问URL
     
     def __init__(self, **kwargs):
         super(PaperSubmission, self).__init__(**kwargs)
@@ -188,7 +191,10 @@ class PaperSubmission(db.Model):
             'number': self.number,
             'pages': self.pages,
             'publisher': self.publisher,
-            'citations': self.citations
+            'citations': self.citations,
+            'pdf_file_path': self.pdf_file_path,
+            'cos_key': self.cos_key,
+            'cos_url': self.cos_url
         }
     
     def __repr__(self):
@@ -239,3 +245,36 @@ class Paper(db.Model):
     pages = db.Column(db.String(50))
     publisher = db.Column(db.String(200))
     citations = db.Column(db.Text)               # 原始citations字段，JSON字符串
+    pdf_file_path = db.Column(db.String(500))    # PDF文件路径
+    cos_key = db.Column(db.String(500))          # COS中的文件键
+    cos_url = db.Column(db.String(500))          # COS文件的访问URL
+    
+    def to_dict(self):
+        """将模型转换为字典
+        
+        Returns:
+            dict: 包含所有字段的字典
+        """
+        return {
+            'id': self.id,
+            'title': self.title,
+            'abstract': self.abstract,
+            'authors': self.authors,
+            'year': self.year,
+            'journal': self.journal,
+            'doi': self.doi,
+            'added_at': self.added_at.isoformat() if self.added_at else None,
+            'added_by': self.added_by,
+            'type': self.type,
+            'citation_key': self.citation_key,
+            'booktitle': self.booktitle,
+            'organization': self.organization,
+            'volume': self.volume,
+            'number': self.number,
+            'pages': self.pages,
+            'publisher': self.publisher,
+            'citations': self.citations,
+            'pdf_file_path': self.pdf_file_path,
+            'cos_key': self.cos_key,
+            'cos_url': self.cos_url
+        }

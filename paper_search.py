@@ -11,6 +11,7 @@ from transformers import AutoModelForCausalLM
 from dbutils.pooled_db import PooledDB
 from symspellpy import SymSpell, Verbosity
 import re
+from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
 
 # 设置环境变量以优化内存使用
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
@@ -42,8 +43,8 @@ class PaperSearch:
             
             # 初始化DeepSeek客户端
             self.deepseek_client = OpenAI(
-                api_key="your deepseek key",
-                base_url="https://api.deepseek.com/v1"
+                api_key=DEEPSEEK_API_KEY,
+                base_url=DEEPSEEK_BASE_URL
             )
             
             # 初始化拼写检查器
@@ -147,8 +148,8 @@ Citation Suggestion:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
 
-    def batch_process_selector(self, results, user_query, batch_size=25):
-        """分批处理selector评分"""
+    def batch_process_selector(self, results, user_query, batch_size=4, callback=None):
+        """分批处理selector评分，支持回调函数实时推送结果"""
         scores = []
         for i in range(0, len(results), batch_size):
             batch = results[i:i + batch_size]
@@ -164,9 +165,48 @@ Citation Suggestion:
             try:
                 batch_scores = self.selector.infer_score(select_prompts)
                 scores.extend(batch_scores)
+                
+                # 为当前批次的结果添加评分
+                batch_start_idx = i
+                for j, score in enumerate(batch_scores):
+                    results[batch_start_idx + j]['select_score'] = score
+                
+                # 如果提供了回调函数，处理当前批次的高评分论文
+                if callback:
+                    high_score_results = []
+                    for j, score in enumerate(batch_scores):
+                        if score > 0.5:  # 评分大于0.5的论文
+                            high_score_results.append(results[batch_start_idx + j])
+                    
+                    if high_score_results:
+                        # 格式化高评分论文
+                        formatted_high_score_results = []
+                        for result in high_score_results:
+                            paper = result['paper']
+                            formatted_result = {
+                                'id': paper.get('id', None),
+                                'title': paper['title'],
+                                'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
+                                'year': paper.get('year', 'Unknown'),
+                                'abstract': paper.get('abstract', 'No abstract available'),
+                                'similarity': float(result['similarity']),
+                                'select_score': float(result['select_score']),
+                                'bibtex': result['bibtex'],
+                                'pdf_file_path': paper.get('pdf_file_path', None)
+                            }
+                            # 添加翻译信息
+                            if hasattr(self, 'last_corrected_query') and self.last_corrected_query:
+                                formatted_result['corrected_query'] = self.last_corrected_query
+                            formatted_high_score_results.append(formatted_result)
+                        
+                        # 调用回调函数推送高评分论文
+                        callback(formatted_high_score_results, batch_start_idx // batch_size + 1)
+                
                 self.clear_gpu_memory()
+                #print(f"完成批次 {i//batch_size + 1}，评分范围: {min(batch_scores):.3f} - {max(batch_scores):.3f}")
+                
             except Exception as e:
-                print(f"处理批次 {i//batch_size + 1} 时出错: {str(e)}")
+                #print(f"处理批次 {i//batch_size + 1} 时出错: {str(e)}")
                 scores.extend([0.0] * len(batch))
         return scores
 
@@ -349,6 +389,55 @@ Level 3 (Specific): show me research on [最具体查询]"""
             
         return corrected_text
 
+    def detect_language(self, text):
+        """
+        检测文本语言
+        :param text: 输入文本
+        :return: 'chinese' 或 'english'
+        """
+        try:
+            # 简单的语言检测：检查是否包含中文字符
+            chinese_chars = re.findall(r'[\u4e00-\u9fff]', text)
+            if len(chinese_chars) > 0:
+                return 'chinese'
+            else:
+                return 'english'
+        except Exception as e:
+            print(f"语言检测失败: {str(e)}")
+            return 'english'  # 默认返回英文
+    
+    def translate_to_english(self, chinese_text):
+        """
+        使用 DeepSeek API 将中文翻译成英文
+        :param chinese_text: 中文文本
+        :return: 英文翻译
+        """
+        try:
+            prompt = f"""请将以下中文学术查询翻译成英文，保持学术性和专业性：
+
+中文查询：{chinese_text}
+
+请直接返回英文翻译，不要添加任何解释或额外内容。"""
+
+            response = self.deepseek_client.chat.completions.create(
+                model="deepseek-chat",
+                messages=[
+                    {"role": "system", "content": "你是一个专业的学术翻译助手，擅长将中文学术查询翻译成准确的英文。"},
+                    {"role": "user", "content": prompt}
+                ],
+                stream=False,
+                temperature=0.1  # 使用较低的温度以获得更稳定的翻译
+            )
+            
+            english_translation = response.choices[0].message.content.strip()
+            print(f"翻译结果: {chinese_text} -> {english_translation}")
+            return english_translation
+            
+        except Exception as e:
+            print(f"翻译失败: {str(e)}")
+            # 如果翻译失败，返回原文
+            return chinese_text
+
     def search_papers(self, query_paper, top_k=5, user_query=None, mode='multi-level', target_level=None):
         """
         支持两种模式：
@@ -390,6 +479,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
             for result in candidate_results:
                 paper = result['paper']
                 formatted_result = {
+                    'id': paper.get('id', None),
                     'title': paper['title'],
                     'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
                     'year': paper.get('year', 'Unknown'),
@@ -434,6 +524,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
             for result in candidate_results:
                 paper = result['paper']
                 formatted_result = {
+                    'id': paper.get('id', None),
                     'title': paper['title'],
                     'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
                     'year': paper.get('year', 'Unknown'),
@@ -441,7 +532,8 @@ Level 3 (Specific): show me research on [最具体查询]"""
                     'similarity': float(result['similarity']),
                     'select_score': float(result.get('select_score', 0.0)),
                     'citation_analysis': result.get('citation_analysis', '分析失败'),
-                    'bibtex': result['bibtex']
+                    'bibtex': result['bibtex'],
+                    'pdf_file_path': paper.get('pdf_file_path', None)
                 }
                 formatted_results.append(formatted_result)
             
@@ -476,6 +568,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
         for result in candidate_results:
             paper = result['paper']
             formatted_result = {
+                'id': paper.get('id', None),
                 'title': paper['title'],
                 'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
                 'year': paper.get('year', 'Unknown'),
@@ -518,14 +611,228 @@ Level 3 (Specific): show me research on [最具体查询]"""
         for result in candidate_results:
             paper = result['paper']
             formatted_result = {
+                'id': paper.get('id', None),
                 'title': paper['title'],
                 'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
                 'year': paper.get('year', 'Unknown'),
                 'abstract': paper.get('abstract', 'No abstract available'),
                 'similarity': float(result['similarity']),
                 'select_score': float(result.get('select_score', 0.0)),
-                'citation_analysis': result.get('citation_analysis', '分析失败'),
+                'bibtex': result['bibtex'],
+                'pdf_file_path': paper.get('pdf_file_path', None)
+            }
+            formatted_results.append(formatted_result)
+            
+        return {
+            'candidates': formatted_candidates,
+            'filtered': formatted_results,
+            'original_query': original_query,
+            'corrected_query': corrected_query
+        }
+
+    def search_papers_realtime(self, query_paper, user_query=None, mode='original', target_level=None, callback=None):
+        """
+        实时搜索论文，支持批次推送高评分论文
+        :param callback: 回调函数，用于推送高评分论文
+        """
+        original_query = query_paper if isinstance(query_paper, str) else f"{query_paper['title']} {query_paper.get('abstract', '')}"
+        corrected_query = None
+        
+        if isinstance(query_paper, str):
+            # 检测语言
+            language = self.detect_language(query_paper)
+            print(f"\n检测到查询语言: {language}")
+            
+            if language == 'chinese':
+                # 中文输入：翻译成英文
+                print(f"\n检测到中文查询，正在翻译成英文...")
+                english_query = self.translate_to_english(query_paper)
+                query_text = english_query
+                corrected_query = english_query
+                self.last_corrected_query = english_query
+                print(f"翻译完成，使用英文查询: {english_query}")
+            else:
+                # 英文输入：修正拼写错误
+                query_text = self.correct_spelling(query_paper)
+                if query_text != query_paper:
+                    print(f"\n修正拼写错误: {query_paper} -> {query_text}")
+                    corrected_query = query_text
+                    self.last_corrected_query = query_text
+                else:
+                    self.last_corrected_query = None
+        else:
+            query_text = f"{query_paper['title']} {query_paper.get('abstract', '')}"
+
+        # 原文查询模式直接使用向量检索
+        if mode == 'original' or target_level is None:
+            print("\n使用原文查询模式...")
+            query_embedding = self.model.encode([query_text])[0]
+            similarities = cosine_similarity([query_embedding], self.embeddings)[0]
+            indices = np.argsort(similarities)[::-1][:50]
+            candidate_results = []
+            for idx in indices:
+                paper = self.papers[idx]
+                bibtex = self.generate_bibtex(paper)
+                candidate_results.append({
+                    "paper": paper,
+                    "similarity": similarities[idx],
+                    "bibtex": bibtex
+                })
+            print(f"\n找到 {len(candidate_results)} 篇候选论文")
+            
+            # 格式化候选结果
+            formatted_candidates = []
+            for result in candidate_results:
+                paper = result['paper']
+                formatted_result = {
+                    'id': paper.get('id', None),
+                    'title': paper['title'],
+                    'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
+                    'year': paper.get('year', 'Unknown'),
+                    'abstract': paper.get('abstract', 'No abstract available'),
+                    'similarity': float(result['similarity']),
+                    'bibtex': result['bibtex']
+                }
+                formatted_candidates.append(formatted_result)
+            
+            # 使用 selector 过滤结果，支持实时推送
+            if self.selector:
+                try:
+                    print("\n使用selector进行过滤...")
+                    # 使用回调函数进行实时推送
+                    select_scores = self.batch_process_selector(candidate_results, query_text, batch_size=4, callback=callback)
+                    
+                    # 处理所有结果，去重并排序
+                    seen_titles = set()
+                    unique_results = []
+                    for result in candidate_results:
+                        title = result['paper']['title'].lower().strip()
+                        if title not in seen_titles:
+                            seen_titles.add(title)
+                            unique_results.append(result)
+                    
+                    # 按评分和相似度排序
+                    unique_results.sort(key=lambda x: (x.get('select_score', 0), x['similarity']), reverse=True)
+                    
+                    # 筛选高评分论文
+                    filtered_results = [r for r in unique_results if r.get('select_score', 0) > 0.5]
+                    if not filtered_results:
+                        print("没有论文评分大于0.5，返回评分最高的1篇论文")
+                        filtered_results = unique_results[:1]
+                    
+                    print(f"\n筛选后保留 {len(filtered_results)} 篇论文")
+                    
+                except Exception as e:
+                    print(f"Selector过滤失败: {str(e)}")
+                    print("将使用相似度排序结果")
+                    filtered_results = candidate_results[:5]
+            else:
+                filtered_results = candidate_results[:5]
+            
+            # 格式化最终结果
+            formatted_results = []
+            for result in filtered_results:
+                paper = result['paper']
+                formatted_result = {
+                    'id': paper.get('id', None),
+                    'title': paper['title'],
+                    'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
+                    'year': paper.get('year', 'Unknown'),
+                    'abstract': paper.get('abstract', 'No abstract available'),
+                    'similarity': float(result['similarity']),
+                    'select_score': float(result.get('select_score', 0.0)),
+                    'bibtex': result['bibtex'],
+                    'pdf_file_path': paper.get('pdf_file_path', None)
+                }
+                formatted_results.append(formatted_result)
+            
+            return {
+                'candidates': formatted_candidates,
+                'filtered': formatted_results,
+                'original_query': original_query,
+                'corrected_query': corrected_query
+            }
+            
+        # 分级查询模式
+        print(f"\n正在生成第{target_level}级查询...")
+        queries = self.generate_queries(query_text)
+        query = queries[target_level]
+        print(f"生成的查询: {query}")
+        
+        query_embedding = self.model.encode([query])[0]
+        similarities = cosine_similarity([query_embedding], self.embeddings)[0]
+        indices = np.argsort(similarities)[::-1][:50]
+        candidate_results = []
+        for idx in indices:
+            paper = self.papers[idx]
+            bibtex = self.generate_bibtex(paper)
+            candidate_results.append({
+                "paper": paper,
+                "similarity": similarities[idx],
+                "bibtex": bibtex
+            })
+        print(f"\n找到 {len(candidate_results)} 篇候选论文")
+        
+        formatted_candidates = []
+        for result in candidate_results:
+            paper = result['paper']
+            formatted_result = {
+                'id': paper.get('id', None),
+                'title': paper['title'],
+                'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
+                'year': paper.get('year', 'Unknown'),
+                'abstract': paper.get('abstract', 'No abstract available'),
+                'similarity': float(result['similarity']),
                 'bibtex': result['bibtex']
+            }
+            formatted_candidates.append(formatted_result)
+            
+        if self.selector:
+            try:
+                print(f"\n使用selector进行过滤: {query}")
+                # 使用回调函数进行实时推送
+                select_scores = self.batch_process_selector(candidate_results, query, batch_size=4, callback=callback)
+                
+                # 处理所有结果，去重并排序
+                seen_titles = set()
+                unique_results = []
+                for result in candidate_results:
+                    title = result['paper']['title'].lower().strip()
+                    if title not in seen_titles:
+                        seen_titles.add(title)
+                        unique_results.append(result)
+                
+                # 按评分和相似度排序
+                unique_results.sort(key=lambda x: (x.get('select_score', 0), x['similarity']), reverse=True)
+                
+                # 筛选高评分论文
+                filtered_results = [r for r in unique_results if r.get('select_score', 0) > 0.5]
+                if not filtered_results:
+                    print(f"没有论文评分大于0.5，返回评分最高的1篇论文")
+                    filtered_results = unique_results[:1]
+                
+                print(f"\n筛选后保留 {len(filtered_results)} 篇论文")
+                
+            except Exception as e:
+                print(f"Selector过滤失败: {str(e)}")
+                print("将使用相似度排序结果")
+                filtered_results = candidate_results[:5]
+        else:
+            filtered_results = candidate_results[:5]
+            
+        formatted_results = []
+        for result in filtered_results:
+            paper = result['paper']
+            formatted_result = {
+                'id': paper.get('id', None),
+                'title': paper['title'],
+                'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
+                'year': paper.get('year', 'Unknown'),
+                'abstract': paper.get('abstract', 'No abstract available'),
+                'similarity': float(result['similarity']),
+                'select_score': float(result.get('select_score', 0.0)),
+                'bibtex': result['bibtex'],
+                'pdf_file_path': paper.get('pdf_file_path', None)
             }
             formatted_results.append(formatted_result)
             
