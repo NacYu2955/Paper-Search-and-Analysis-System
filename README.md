@@ -1,4 +1,4 @@
-# PASA 论文检索系统
+# 论文检索系统
 
 一个基于深度学习的智能论文检索系统，支持实时搜索、多轮对话、PDF管理和引用分析等功能。
 
@@ -30,6 +30,36 @@
    - DeepSeek API (查询生成和对话)
 4. **存储**: 腾讯云COS + 本地SQLite
 5. **网络**: 花生壳内网穿透
+
+### 数据库结构
+
+系统使用SQLite数据库存储论文信息，主要字段包括：
+
+| 字段名 | 类型 | 说明 |
+|--------|------|------|
+| id | INTEGER | 论文唯一标识符 |
+| title | TEXT | 论文标题 |
+| authors | TEXT | 作者信息 |
+| abstract | TEXT | 论文摘要 |
+| year | INTEGER | 发表年份 |
+| journal | TEXT | 期刊名称 |
+| doi | TEXT | DOI标识符 |
+| status | TEXT | 论文状态 |
+| submitter | TEXT | 提交者 |
+| review_comment | TEXT | 审核评论 |
+| reviewed_by | TEXT | 审核者 |
+| submitted_at | DATETIME | 提交时间 |
+| reviewed_at | DATETIME | 审核时间 |
+| type | TEXT | 论文类型 |
+| citation_key | TEXT | 引用键 |
+| booktitle | TEXT | 书名/会议名 |
+| organization | TEXT | 组织/机构 |
+| volume | TEXT | 卷号 |
+| number | TEXT | 期号 |
+| pages | TEXT | 页码 |
+| publisher | TEXT | 出版商 |
+| citations | TEXT | 引用信息 |
+| pdf_file_path | TEXT | PDF文件路径 |
 
 ## 🔧 外部接口和平台
 
@@ -131,6 +161,13 @@
 
 ## 📦 安装部署
 
+### 数据准备
+
+**重要**: 本项目不包含预建的数据库文件，用户需要：
+- 自行准备论文数据
+- 或使用系统提供的上传功能添加论文
+- 数据库文件 `papers.db` 会在首次运行时自动创建
+
 ### 安装步骤
 
 1. **克隆项目**
@@ -158,10 +195,20 @@ export COS_SECRET_ID="your-cos-secret-id"
 export COS_SECRET_KEY="your-cos-secret-key"
 ```
 
-5. **启动服务**
+5. **初始化数据库**
+```bash
+python -c "from app import init_db; init_db()"
+```
+
+6. **启动服务**
 ```bash
 python start.py
 ```
+
+**注意**: 本项目不包含预建的数据库文件，用户需要：
+- 自行准备论文数据
+- 或使用系统提供的上传功能添加论文
+- 数据库文件 `papers.db` 会在首次运行时自动创建
 
 ## 🚀 快速开始
 
