@@ -1,4 +1,4 @@
-# PASA Paper Retrieval System
+# Paper Search and Analysis System
 
 An intelligent paper retrieval system based on deep learning, supporting real-time search, multi-turn dialogue, PDF management, and citation analysis.
 
