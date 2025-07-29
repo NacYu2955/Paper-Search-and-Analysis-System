@@ -1,246 +1,266 @@
-# 论文检索系统
+# PASA Paper Retrieval System
 
-一个基于深度学习的智能论文检索系统，支持实时搜索、多轮对话、PDF管理和引用分析等功能。
+An intelligent paper retrieval system based on deep learning, supporting real-time search, multi-turn dialogue, PDF management, and citation analysis.
 
-## 🌐 在线访问
+## 🌐 Online Access
 
-**项目网站**: [http://dicalab-paper.com](http://dicalab-paper.com)
+**Project Website**: [http://dicalab-paper.com](http://dicalab-paper.com)
 
 ---
 
-## 🚀 系统特性
+## 🚀 System Features
 
-- **智能搜索**: 基于语义向量相似度和大模型理解的混合检索
-- **实时推送**: WebSocket实时推送搜索结果
-- **多语言支持**: 支持中英文查询和自动翻译
-- **PDF管理**: 支持PDF文件上传、存储和查看
-- **引用分析**: 智能分析论文引用关系和对话
-- **拼写检查**: 自动修正查询中的拼写错误
-- **宽泛查询**: 自动将长查询转换为宽泛查询
+- **Intelligent Search**: Hybrid retrieval based on semantic vector similarity and large model understanding
+- **Real-time Push**: WebSocket real-time push of search results
+- **Multi-language Support**: Support for Chinese and English queries with automatic translation
+- **PDF Management**: Support for PDF file upload, storage, and viewing
+- **Citation Analysis**: Intelligent analysis of paper citation relationships and dialogue
+- **Spell Check**: Automatic correction of spelling errors in queries
+- **Broad Query**: Automatic conversion of long queries to broad queries
 
-## 🏗️ 系统架构
+## 🏗️ System Architecture
 
-### 核心组件
+### Core Components
 
-1. **前端**: HTML5 + JavaScript + Bootstrap + Socket.IO
-2. **后端**: Flask + SQLite + WebSocket
-3. **AI模型**: 
+1. **Frontend**: HTML5 + JavaScript + Bootstrap + Socket.IO
+2. **Backend**: Flask + SQLite + WebSocket
+3. **AI Models**: 
    - SentenceTransformer (all-MiniLM-L6-v2)
-   - PASA-7B-Selector (论文筛选模型)
-   - DeepSeek API (查询生成和对话)
-4. **存储**: 腾讯云COS + 本地SQLite
-5. **网络**: 花生壳内网穿透
+   - PASA-7B-Selector (Paper Selection Model)
+   - DeepSeek API (Query Generation and Dialogue)
+4. **Storage**: Tencent Cloud COS + Local SQLite
+5. **Network**: Peanut Shell Intranet Penetration
 
-### 数据库结构
+### Database Structure
 
-系统使用SQLite数据库存储论文信息，主要字段包括：
+The system uses SQLite database to store paper information, with the following main fields:
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| id | INTEGER | 论文唯一标识符 |
-| title | TEXT | 论文标题 |
-| authors | TEXT | 作者信息 |
-| abstract | TEXT | 论文摘要 |
-| year | INTEGER | 发表年份 |
-| journal | TEXT | 期刊名称 |
-| doi | TEXT | DOI标识符 |
-| status | TEXT | 论文状态 |
-| submitter | TEXT | 提交者 |
-| review_comment | TEXT | 审核评论 |
-| reviewed_by | TEXT | 审核者 |
-| submitted_at | DATETIME | 提交时间 |
-| reviewed_at | DATETIME | 审核时间 |
-| type | TEXT | 论文类型 |
-| citation_key | TEXT | 引用键 |
-| booktitle | TEXT | 书名/会议名 |
-| organization | TEXT | 组织/机构 |
-| volume | TEXT | 卷号 |
-| number | TEXT | 期号 |
-| pages | TEXT | 页码 |
-| publisher | TEXT | 出版商 |
-| citations | TEXT | 引用信息 |
-| pdf_file_path | TEXT | PDF文件路径 |
+| Field Name | Type | Description |
+|------------|------|-------------|
+| id | INTEGER | Paper unique identifier |
+| title | TEXT | Paper title |
+| authors | TEXT | Author information |
+| abstract | TEXT | Paper abstract |
+| year | INTEGER | Publication year |
+| journal | TEXT | Journal name |
+| doi | TEXT | DOI identifier |
+| status | TEXT | Paper status |
+| submitter | TEXT | Submitter |
+| review_comment | TEXT | Review comments |
+| reviewed_by | TEXT | Reviewer |
+| submitted_at | DATETIME | Submission time |
+| reviewed_at | DATETIME | Review time |
+| type | TEXT | Paper type |
+| citation_key | TEXT | Citation key |
+| booktitle | TEXT | Book title/Conference name |
+| organization | TEXT | Organization/Institution |
+| volume | TEXT | Volume number |
+| number | TEXT | Issue number |
+| pages | TEXT | Page numbers |
+| publisher | TEXT | Publisher |
+| citations | TEXT | Citation information |
+| pdf_file_path | TEXT | PDF file path |
 
-## 🔧 外部接口和平台
+## 🔧 External Interfaces and Platforms
 
-### AI模型和API
+### AI Models and APIs
 
 1. **DeepSeek API**
-   - 用途: 查询生成、多轮对话、引用分析
-   - 配置: `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`
-   - 开销: 按token数量计费 (输入¥0.5-2/百万tokens，输出¥8/百万tokens)
+   - Purpose: Query generation, multi-turn dialogue, citation analysis
+   - Configuration: `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`
+   - Cost: Billed by token usage (Input ¥0.5-2/million tokens, Output ¥8/million tokens)
 
 2. **SentenceTransformer (all-MiniLM-L6-v2)**
-   - 用途: 文本向量化
-   - 部署: 本地加载
-   - 开销: 免费开源模型
+   - Purpose: Text vectorization
+   - Deployment: Local loading
+   - Cost: Free open-source model
 
 3. **PASA-7B-Selector**
-   - 用途: 论文相关性评分
-   - 部署: 本地加载 (7B参数)
-   - 开销: 免费开源模型
+   - Purpose: Paper relevance scoring
+   - Deployment: Local loading (7B parameters)
+   - Cost: Free open-source model
 
-### 云服务
+### Cloud Services
 
-1. **腾讯云COS (对象存储)**
-   - 用途: PDF文件存储
-   - 配置: `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_REGION`, `COS_BUCKET_NAME`
-   - 开销: 对象存储资源包¥9.77/年 + 流量费¥3.5/GB
+1. **Tencent Cloud COS (Object Storage)**
+   - Purpose: PDF file storage
+   - Configuration: `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_REGION`, `COS_BUCKET_NAME`
+   - Cost: Object storage resource package ¥9.77/year + traffic fee ¥3.5/GB
 
-2. **花生壳内网穿透**
-   - 用途: 公网访问
-   - 部署: 本地服务
-   - 域名: dicalab-paper.com
-   - 开销: 专业版 ¥398/年
+2. **Peanut Shell Intranet Penetration**
+   - Purpose: Public network access
+   - Deployment: Local service
+   - Domain: dicalab-paper.com
+   - Cost: Professional version ¥398/year
 
-### 硬件要求
+### Hardware Requirements
 
-- **GPU**: NVIDIA RTX 3090 (24GB显存)
-- **内存**: 建议32GB+ RAM
-- **存储**: 建议100GB+ SSD
-- **网络**: 稳定的互联网连接
+- **GPU**: NVIDIA RTX 3090 (24GB VRAM)
+- **Memory**: Recommended 32GB+ RAM
+- **Storage**: Recommended 100GB+ SSD
+- **Network**: Stable internet connection
 
-## 💰 系统开销
-### 云服务开销
+## 💰 System Costs
+
+### Hardware Costs
+
+1. **GPU Memory Usage**
+   - PASA-7B-Selector: ~14GB
+   - SentenceTransformer: ~2GB
+   - Total: ~16GB (3090 24GB sufficient)
+
+2. **Memory Usage**
+   - Model loading: ~8GB
+   - Paper vectors: ~2GB
+   - System operation: ~4GB
+   - Total: ~14GB
+
+3. **Storage Costs**
+   - Model files: ~15GB
+   - Paper database: ~100MB
+   - PDF files: Grows as needed
+   - Total: ~15GB base
+
+### Cloud Service Costs
 
 1. **DeepSeek API**
-   - 输入 (缓存命中): ¥0.5/百万tokens
-   - 输入 (缓存未命中): ¥2/百万tokens
-   - 输出: ¥8/百万tokens
+   - Input (cache hit): ¥0.5/million tokens
+   - Input (cache miss): ¥2/million tokens
+   - Output: ¥8/million tokens
 
-2. **腾讯云COS**
-   - 对象存储资源包: ¥9.77/年
-   - 流量费用: ¥3.5/GB (按需)
+2. **Tencent Cloud COS**
+   - Object storage resource package: ¥9.77/year
+   - Traffic fee: ¥3.5/GB (as needed)
 
-3. **花生壳**
-   - 专业版: ¥398/年
-   - 域名服务: ¥99/年 (dicalab-paper.com)
-   - HTTP/HTTPS映射服务: ¥10/年
+3. **Peanut Shell**
+   - Professional version: ¥398/year (dicalab-paper.com domain)
+   - Domain service: ¥99/year (dicalab-paper.com)
+   - HTTP/HTTPS mapping service: ¥10/year
 
-### 已购买服务费用
+### Purchased Service Costs
 
-- **花生壳专业版**: ¥398/年
-- **域名服务 (dicalab-paper.com)**: ¥99/年
-- **HTTP/HTTPS映射服务**: ¥10/年
-- **腾讯云COS对象存储资源包**: ¥9.77/年
-- **总计固定年费**: ¥516.77/年
+- **Peanut Shell Professional**: ¥398/year
+- **Domain Service (dicalab-paper.com)**: ¥99/year
+- **HTTP/HTTPS Mapping Service**: ¥10/year
+- **Tencent Cloud COS Object Storage Resource Package**: ¥9.77/year
+- **Total Fixed Annual Fee**: ¥516.77/year
 
-### 按需付费服务
+### Pay-as-you-go Services
 
-- **DeepSeek API**: 按token使用量计费
-- **腾讯云COS流量费**: 按实际流量计费
-- **优化建议**: 缓存常用查询结果，提高DeepSeek缓存命中率
+- **DeepSeek API**: Billed by token usage
+- **Tencent Cloud COS Traffic Fee**: Billed by actual traffic
+- **Optimization Suggestion**: Cache common query results, improve DeepSeek cache hit rate
 
-## 🔄 系统维护
+## 🔄 System Maintenance
 
-### 服务器重启
+### Server Restart
 
-- **频率**: 每30天自动重启
-- **原因**: 释放内存、更新系统、清理缓存
-- **影响**: 服务中断约2-3分钟
+- **Frequency**: Automatic restart every 30 days
+- **Reason**: Release memory, update system, clean cache
+- **Impact**: Service interruption about 2-3 minutes
 
-## 📦 安装部署
+## 📦 Installation and Deployment
 
-### 数据准备
+### Data Preparation
 
-**重要**: 本项目不包含预建的数据库文件，用户需要：
-- 自行准备论文数据
-- 或使用系统提供的上传功能添加论文
-- 数据库文件 `papers.db` 会在首次运行时自动创建
+**Important**: This project does not include pre-built database files. Users need to:
+- Prepare paper data themselves
+- Or use the system's upload function to add papers
+- Database file `papers.db` will be automatically created on first run
 
-### 安装步骤
+### Installation Steps
 
-1. **克隆项目**
+1. **Clone Project**
 ```bash
 git clone https://github.com/NacYu2955/Paper-Search-and-Analysis-System.git
 ```
 
-2. **安装Python依赖**
+2. **Install Python Dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **下载模型文件**
+3. **Download Model Files**
 ```bash
-# 下载SentenceTransformer模型
+# Download SentenceTransformer model
 python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
-# 下载PASA-7B-Selector模型 (需要手动下载到checkpoints目录)
+# Download PASA-7B-Selector model (need to manually download to checkpoints directory)
 ```
 
-4. **配置环境变量**
+4. **Configure Environment Variables**
 ```bash
 export DEEPSEEK_API_KEY="your-api-key"
 export COS_SECRET_ID="your-cos-secret-id"
 export COS_SECRET_KEY="your-cos-secret-key"
 ```
 
-5. **初始化数据库**
+5. **Initialize Database**
 ```bash
 python -c "from app import init_db; init_db()"
 ```
 
-6. **启动服务**
+6. **Start Service**
 ```bash
 python start.py
 ```
 
-**注意**: 本项目不包含预建的数据库文件，用户需要：
-- 自行准备论文数据
-- 或使用系统提供的上传功能添加论文
-- 数据库文件 `papers.db` 会在首次运行时自动创建
+**Note**: This project does not include pre-built database files. Users need to:
+- Prepare paper data themselves
+- Or use the system's upload function to add papers
+- Database file `papers.db` will be automatically created on first run
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-1. **访问系统**: [http://dicalab-paper.com](http://dicalab-paper.com)
-2. **输入查询**: 支持中英文自然语言查询
-3. **查看结果**: 实时推送高相关性论文
-4. **深度分析**: 点击论文查看详情和引用分析
+1. **Access System**: [http://dicalab-paper.com](http://dicalab-paper.com)
+2. **Input Query**: Support Chinese and English natural language queries
+3. **View Results**: Real-time push of high-relevance papers
+4. **Deep Analysis**: Click papers to view details and citation analysis
 
-## 📊 性能指标
+## 📊 Performance Metrics
 
-- **搜索响应时间**: 2-5秒
-- **实时推送延迟**: <1秒
-- **并发用户数**: 支持10-20个并发用户
-- **论文库规模**: 支持10万+论文
-- **GPU利用率**: 平均60-80%
+- **Search Response Time**: 2-5 seconds
+- **Real-time Push Delay**: <1 second
+- **Concurrent Users**: Support 10-20 concurrent users
+- **Paper Library Scale**: Support 100,000+ papers
+- **GPU Utilization**: Average 60-80%
 
-## 🔧 配置说明
+## 🔧 Configuration
 
-### 主要配置文件
+### Main Configuration Files
 
-- `config.py`: 系统配置
-- `agent_prompt.json`: AI提示模板
-- `start.py`: 启动脚本
+- `config.py`: System configuration
+- `agent_prompt.json`: AI prompt templates
+- `start.py`: Startup script
 
-### 环境变量
+### Environment Variables
 
 ```bash
 # DeepSeek API
-DEEPSEEK_API_KEY=sk-xxx
+DEEPSEEK_API_KEY=your_deepseek_api_key
 DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 
-# 腾讯云COS
-COS_SECRET_ID=AKIDxxx
-COS_SECRET_KEY=xxx
+# Tencent Cloud COS
+COS_SECRET_ID=your_cos_secret_id
+COS_SECRET_KEY=your_cos_secret_key
 COS_REGION=ap-location
-COS_BUCKET_NAME=bucket_name-xxx
+COS_BUCKET_NAME=your_bucket_name
 
-# 系统配置
+# System Configuration
 USE_COS_STORAGE=true
 HOST=0.0.0.0
 PORT=6006
 ```
 
-## 🤝 贡献
+## 🤝 Contributing
 
-欢迎提交Issue和Pull Request来改进项目。
+Welcome to submit Issues and Pull Requests to improve the project.
 
-## 📞 联系方式
+## 📞 Contact
 
-如有问题或建议，请通过以下方式联系：
-- 邮箱: [xinyu9026@gmail.com]
+For questions or suggestions, please contact via:
+- Email: [xinyu9026@gmail.com]
 
 ---
 
-**注意**: 请确保在使用前正确配置所有API密钥和云服务配置。 
+**Note**: Please ensure all API keys and cloud service configurations are correctly set up before use. 
