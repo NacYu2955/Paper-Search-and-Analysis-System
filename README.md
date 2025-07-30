@@ -182,6 +182,7 @@ pip install -r requirements.txt
 
 3. **Download Model Files**
 `
+
 Download all-MiniLM-L6-v2 model [https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
 
 
