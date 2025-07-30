@@ -181,12 +181,12 @@ pip install -r requirements.txt
 ```
 
 3. **Download Model Files**
-```bash
-# Download SentenceTransformer model
-python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+`
+Download all-MiniLM-L6-v2 model [https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
 
-# Download PASA-7B-Selector model (need to manually download to checkpoints directory)
-```
+
+Download PASA-7B-Selector model [https://huggingface.co/bytedance-research/pasa-7b-selector](https://huggingface.co/bytedance-research/pasa-7b-selector)
+
 
 4. **Configure Environment Variables**
 ```bash
