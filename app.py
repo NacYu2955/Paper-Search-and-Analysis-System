@@ -300,6 +300,44 @@ def search():
                 logger.error(f"重新初始化搜索器失败: {str(e)}")
                 return jsonify({'error': '搜索器初始化失败，请稍后重试'}), 500
         
+        # 增加搜索次数统计
+        try:
+            with get_db() as db:
+                # 检查是否存在search_stats表
+                cursor = db.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='search_stats'")
+                if not cursor.fetchone():
+                    # 创建search_stats表
+                    db.execute('''CREATE TABLE search_stats (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        total_searches INTEGER DEFAULT 0,
+                        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )''')
+                    db.commit()
+                
+                # 获取或创建统计记录
+                cursor.execute("SELECT * FROM search_stats LIMIT 1")
+                stats = cursor.fetchone()
+                
+                if stats:
+                    # 更新现有记录
+                    cursor.execute("""
+                        UPDATE search_stats 
+                        SET total_searches = total_searches + 1, 
+                            last_updated = CURRENT_TIMESTAMP 
+                        WHERE id = ?
+                    """, (stats['id'],))
+                else:
+                    # 创建新记录
+                    cursor.execute("""
+                        INSERT INTO search_stats (total_searches, last_updated) 
+                        VALUES (1, CURRENT_TIMESTAMP)
+                    """)
+                
+                db.commit()
+        except Exception as e:
+            logger.error(f"更新搜索统计失败: {str(e)}")
+        
         if mode == 'original':
             # 原文查询模式直接执行，不生成分级查询
             results = searcher.search_papers(query, mode='original')
@@ -1536,6 +1574,44 @@ def search_realtime():
         if not query:
             return jsonify({'error': '请输入查询内容'}), 400
         
+        # 增加搜索次数统计
+        try:
+            with get_db() as db:
+                # 检查是否存在search_stats表
+                cursor = db.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='search_stats'")
+                if not cursor.fetchone():
+                    # 创建search_stats表
+                    db.execute('''CREATE TABLE search_stats (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        total_searches INTEGER DEFAULT 0,
+                        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )''')
+                    db.commit()
+                
+                # 获取或创建统计记录
+                cursor.execute("SELECT * FROM search_stats LIMIT 1")
+                stats = cursor.fetchone()
+                
+                if stats:
+                    # 更新现有记录
+                    cursor.execute("""
+                        UPDATE search_stats 
+                        SET total_searches = total_searches + 1, 
+                            last_updated = CURRENT_TIMESTAMP 
+                        WHERE id = ?
+                    """, (stats['id'],))
+                else:
+                    # 创建新记录
+                    cursor.execute("""
+                        INSERT INTO search_stats (total_searches, last_updated) 
+                        VALUES (1, CURRENT_TIMESTAMP)
+                    """)
+                
+                db.commit()
+        except Exception as e:
+            logger.error(f"更新搜索统计失败: {str(e)}")
+        
         # 存储当前会话的搜索结果
         if not hasattr(app, 'realtime_results'):
             app.realtime_results = {}
@@ -1608,12 +1684,12 @@ def search_realtime():
                         }, room=session_id)
                         return
                 
-                # 检查字数，如果超过50字则转换为宽泛查询
+                # 检查字数，如果超过400字则转换为宽泛查询
                 original_query = query
                 final_query = query
                 logger.info(f"原始查询长度: {len(query)} 字符")
                 
-                if len(query) > 50:
+                if len(query) > 400:
                     logger.info(f"检测到长查询，开始转换为宽泛查询...")
                     try:
                         # 使用searcher的generate_queries功能生成宽泛查询
@@ -1872,6 +1948,50 @@ def cos_sts_token():
     except Exception as e:
         logger.error(f"获取COS临时密钥失败: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/search_stats')
+def admin_search_stats():
+    """获取搜索统计信息"""
+    try:
+        with get_db() as db:
+            # 检查是否存在search_stats表
+            cursor = db.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='search_stats'")
+            if not cursor.fetchone():
+                # 创建search_stats表
+                db.execute('''CREATE TABLE search_stats (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    total_searches INTEGER DEFAULT 0,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )''')
+                db.commit()
+            
+            # 获取统计记录
+            cursor.execute("SELECT * FROM search_stats LIMIT 1")
+            stats = cursor.fetchone()
+            
+            if stats:
+                return jsonify({
+                    'success': True,
+                    'total_searches': stats['total_searches'],
+                    'last_updated': stats['last_updated']
+                })
+            else:
+                # 如果没有记录，创建一条初始记录
+                cursor.execute("""
+                    INSERT INTO search_stats (total_searches, last_updated) 
+                    VALUES (0, CURRENT_TIMESTAMP)
+                """)
+                db.commit()
+                
+                return jsonify({
+                    'success': True,
+                    'total_searches': 0,
+                    'last_updated': 'CURRENT_TIMESTAMP'
+                })
+    except Exception as e:
+        logger.error(f"获取搜索统计失败: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     try:
