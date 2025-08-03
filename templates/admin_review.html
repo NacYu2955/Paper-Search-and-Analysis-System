@@ -254,6 +254,27 @@
     <div class="container">
         <div class="admin-container">
             <h1 class="admin-title">管理员审核</h1>
+            
+            <!-- 搜索统计信息 -->
+            <div class="search-stats-container" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 12px; margin-bottom: 2rem; text-align: center;">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="stats-item">
+                            <i class="fas fa-search fa-2x mb-2"></i>
+                            <h3 id="total-searches">加载中...</h3>
+                            <p>累计搜索次数</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="stats-item">
+                            <i class="fas fa-clock fa-2x mb-2"></i>
+                            <h3 id="last-updated">加载中...</h3>
+                            <p>最后更新时间</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <!-- 添加标签页切换 -->
             <ul class="nav nav-tabs mb-4" id="paperTabs" role="tablist">
                 <li class="nav-item" role="presentation">
@@ -299,6 +320,31 @@
     </div>
 
     <script>
+        // 加载搜索统计信息
+        async function loadSearchStats() {
+            try {
+                const response = await fetch('/admin/search_stats');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('total-searches').textContent = data.total_searches.toLocaleString();
+                    
+                    if (data.last_updated) {
+                        const lastUpdated = new Date(data.last_updated);
+                        document.getElementById('last-updated').textContent = lastUpdated.toLocaleString('zh-CN');
+                    } else {
+                        document.getElementById('last-updated').textContent = '暂无数据';
+                    }
+                } else {
+                    document.getElementById('total-searches').textContent = '加载失败';
+                    document.getElementById('last-updated').textContent = '加载失败';
+                }
+            } catch (error) {
+                document.getElementById('total-searches').textContent = '加载失败';
+                document.getElementById('last-updated').textContent = '加载失败';
+            }
+        }
+        
         // 加载待入库论文列表
         async function loadPendingPapers() {
             try {
@@ -462,6 +508,7 @@
 
         // 页面加载时获取论文列表
         document.addEventListener('DOMContentLoaded', () => {
+            loadSearchStats();
             loadPendingPapers();
             loadReviewedPapers();
         });
