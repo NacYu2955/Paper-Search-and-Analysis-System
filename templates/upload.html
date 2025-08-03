@@ -363,7 +363,15 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    alertContainer.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle"></i> ${data.message || '论文提交成功！'}</div>`;
+                    alertContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i> 
+                            <strong>论文提交成功！</strong><br>
+                            <small class="text-muted">
+                                您的论文已成功提交，正在等待管理员审核。您可以在查看论文库页面的"待入库论文"标签页中查看您的论文状态。
+                            </small>
+                        </div>
+                    `;
                     form.reset();
                     cosUploadFileName = null;
                     cosUploadSuccess = false;
