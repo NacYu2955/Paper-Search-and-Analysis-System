@@ -278,3 +278,4 @@ class Paper(db.Model):
             'cos_key': self.cos_key,
             'cos_url': self.cos_url
         }
+
