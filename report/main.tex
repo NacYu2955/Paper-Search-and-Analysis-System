@@ -1,0 +1,668 @@
+\documentclass[11pt,a4paper,oneside]{report}
+
+\usepackage[a4paper,left=2.5cm,right=2.0cm,top=2.5cm,bottom=2.5cm,headheight=15pt,headsep=0.6cm,footskip=1.5cm]{geometry}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{longtable}
+
+\setmainfont{Arial}
+\setsansfont{Arial}
+\setmonofont{Menlo}
+\setCJKmainfont{Songti SC}
+\setCJKsansfont{Hiragino Sans GB}
+\setCJKmonofont{Songti SC}
+
+\onehalfspacing
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.4\baselineskip}
+\setlist[itemize]{leftmargin=2.5em}
+\setlist[enumerate]{leftmargin=2.5em}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=black,
+  citecolor=black,
+  urlcolor=blue
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0pt}
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0pt}
+}
+
+\titleformat{\chapter}[display]
+  {\normalfont\bfseries\centering}
+  {Chapter \thechapter.}
+  {0.4em}
+  {\Large}
+
+\titleformat{name=\chapter,numberless}[display]
+  {\normalfont\bfseries\centering}
+  {}
+  {0pt}
+  {\Large}
+
+\titleformat{\section}
+  {\normalfont\bfseries}
+  {\thesection.}
+  {0.6em}
+  {}
+
+\titleformat{\subsection}
+  {\normalfont\bfseries}
+  {\thesubsection.}
+  {0.6em}
+  {}
+
+\newcommand{\draftnote}[1]{\textit{#1}}
+
+\begin{document}
+
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+\vspace*{1.8cm}
+{\Large UNDERGRADUATE SENIOR PROJECT REPORT\par}
+\vspace{1.8cm}
+{\Large Domain-Specific Large Language Model\\[0.4em]
+Powered by Retrieval-Augmented Generation\\[0.4em]
+for Scholarly Information Retrieval and Understanding\par}
+\vspace{1.8cm}
+by\par
+\vspace{0.8cm}
+Xinyu Chen (Team Leader)\\
+Jian Yuan\\
+Kaizhuo Hu
+
+\vfill
+Sichuan University -- Pittsburgh Institute\\
+Spring 2026 Draft
+\vspace{1.2cm}
+
+Copyright in this work rests with the authors. Please ensure that any
+reproduction or re-use is done in accordance with the relevant national
+copyright legislation.
+\end{center}
+\end{titlepage}
+
+\clearpage
+\thispagestyle{empty}
+\begin{center}
+{\Large Declarations\par}
+\end{center}
+\vspace{0.8cm}
+
+\noindent\textbf{Project Team Members}
+
+\vspace{0.4cm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}p{2.5cm}}
+\toprule
+Role & Student Name & Student ID & Major \\
+\midrule
+Team Leader / Project Management & Xinyu Chen & 2022141520134 & CS \\
+Frontend Development & Jian Yuan & 2022141520141 & CS \\
+Database and Retrieval Module & Kaizhuo Hu & 2022141520135 & CS \\
+\bottomrule
+\end{tabularx}
+
+\vspace{1.0cm}
+\noindent\textbf{Advisory Committee Members}
+
+\vspace{0.4cm}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+Name & Department / Affiliation \\
+\midrule
+Wei Xu & Advisor \\
+\draftnote{[To be completed]} & Co-Advisor / Outside Major Faculty \\
+\bottomrule
+\end{tabularx}
+
+\vfill
+\noindent\draftnote{This page is kept as a draft placeholder following the SCUPI template and should be revised with the final committee information before submission.}
+
+\clearpage
+\thispagestyle{empty}
+\begin{center}
+{\Large AI Tool Usage Statement\par}
+\end{center}
+\vspace{0.8cm}
+
+\noindent This draft was prepared with AI-assisted support for language polishing,
+structural organization, and preliminary drafting of literature review and system
+description sections. All technical claims in the retrieval module chapter were
+rechecked against the current project codebase and aligned with the team midterm
+report before inclusion in this version.
+
+\noindent\textbf{Sections involved:} Abstract, Chapter 3, and Chapter 4.
+
+\noindent\textbf{Human post-processing:} The generated content was manually revised to
+reflect the actual project status, especially the distinction between the current
+retrieval-and-scoring prototype and the later full RAG pipeline planned for
+subsequent development.
+
+\noindent\draftnote{This page is a working draft only and should be replaced by the official school form before final submission.}
+
+\clearpage
+\pagenumbering{roman}
+\setcounter{page}{3}
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+This report presents a draft final thesis for the \textit{Paper Search and Analysis
+System}, a scholarly search platform developed around a domain-specific paper
+collection and large language model assisted interaction. The current prototype
+already supports data ingestion, paper management, bilingual query preprocessing,
+semantic candidate recall, and selector-based relevance scoring. In particular, the
+implemented retrieval workflow centers on embedding-based paper recall with
+\texttt{all-MiniLM-L6-v2}, followed by relevance filtering with the
+\texttt{PASA-7B-Selector} model. Therefore, the completed core at this stage is still a
+retrieval and ranking system rather than a full retrieval-augmented generation
+pipeline.
+
+This draft is intentionally focused on the retrieval module, which is also the main
+scope of the author responsible for later system enhancement. To enrich the first-round
+retrieval stage before the complete RAG pipeline is integrated, this report proposes a
+retrieval enhancement path based on hybrid sparse-dense search, Milvus-backed vector
+indexing, candidate fusion, and retrieval-oriented evaluation. The design introduces
+Milvus to manage scalable vector storage and future chunk-level passage indexing,
+while preserving the current selector model as the final reranking component. For
+evaluation, the report prioritizes retrieval metrics such as Recall@k, MRR, nDCG,
+Hit Rate, and latency; RAGAS is included as a later-stage evaluation framework once
+the answer generation module is connected.
+
+The remaining chapters follow the SCUPI senior project report structure and are kept
+as concise scaffolding aligned with the midterm report. They summarize the current
+project architecture, module organization, and implementation roadmap without
+claiming system capabilities that have not yet been fully realized.
+
+\noindent\textbf{Keywords:} scholarly retrieval; hybrid retrieval; Milvus; reranking;
+retrieval evaluation; RAGAS
+
+\chapter*{中文摘要}
+\addcontentsline{toc}{chapter}{中文摘要}
+
+本文给出了 \textit{Paper Search and Analysis System} 的毕业论文初稿。当前系统原型已经完成了
+论文数据管理、基础检索、双语查询预处理以及基于微调模型的相关性筛选等功能。就现阶段而
+言，系统主体仍然是“检索 + 排序”流程，而不是一个已经完整落地的 RAG 生成式流水线。具
+体来说，当前检索主链路以 \texttt{all-MiniLM-L6-v2} 的语义向量召回为基础，再通过
+\texttt{PASA-7B-Selector} 对候选论文进行打分筛选。
+
+本稿重点完善了后续将由作者负责推进的检索增强部分。为了在完整 RAG 管线接入之前提升第
+一轮召回质量，论文提前纳入了混合检索、Milvus 向量数据库、候选融合与检索评测等设计。
+其中，Milvus 主要用于后续的向量索引扩展与分块级检索存储；评测方面则优先采用
+Recall@k、MRR、nDCG、Hit Rate 与延迟等检索指标；RAGAS 被放在后续生成模块接入后的
+联合评估阶段使用。这样既能体现系统未来的扩展方向，又不会把当前成果误写成已经完成的
+完整 RAG 系统。
+
+除检索模块外，其余章节按照中期报告和学校模板先搭建总体框架，作为后续补充实验、部署和
+论文定稿的基础。
+
+\noindent\textbf{关键词：} 学术检索；混合检索；Milvus；重排序；检索评测；RAGAS
+
+\tableofcontents
+
+\clearpage
+\pagenumbering{arabic}
+
+\chapter{Introduction}
+
+\section{Background and Motivation}
+
+The rapid growth of scholarly publications has significantly increased the burden of
+literature discovery for students and researchers. Keyword-only search is often
+insufficient when users formulate long, underspecified, or cross-domain research
+questions. Recent progress in semantic text representation and large language models
+has made it possible to move from pure lexical matching toward retrieval systems that
+better capture intent, topic similarity, and citation relevance \cite{croft2010,reimers2019}.
+
+Our project, the \textit{Paper Search and Analysis System}, is motivated by this need for a
+more intelligent scholarly search workflow. The midterm stage established the basic
+system infrastructure, including database construction, frontend interaction modules,
+paper upload and review functions, and an initial paper retrieval engine. At the same
+time, the team recognizes that the effectiveness of the overall system still depends
+first on whether the right paper candidates can be found at the beginning of the
+workflow.
+
+\section{Scope of This Draft}
+
+This draft deliberately separates the \textbf{current implementation} from the
+\textbf{planned extension}. The current project status does not yet include a complete
+RAG pipeline that retrieves passages and generates grounded long-form answers as the
+main workflow. Instead, the implemented core is a retrieval-and-selection process:
+query preprocessing, semantic candidate recall, and relevance scoring of retrieved
+items by a fine-tuned selector model.
+
+Therefore, the emphasis of this draft is not to overstate RAG as the central
+achievement. Rather, the goal is to document how RAG-related retrieval ideas can be
+introduced in a controlled and realistic way to strengthen the \emph{first-stage
+retrieval layer}. Hybrid retrieval, Milvus-based indexing, retrieval metrics, and
+RAGAS are written as the enhancement direction for the next phase, while the rest of
+the report remains aligned with the real progress summarized in the midterm report.
+
+\section{Main Contributions of This Draft}
+
+This draft provides three concrete contributions:
+
+\begin{enumerate}
+  \item It converts the existing midterm material into a thesis-style report structure
+  compatible with the SCUPI format requirements.
+  \item It clarifies the real status of the current prototype by defining the retrieval
+  module as the completed core and the full RAG pipeline as later work.
+  \item It develops a more detailed retrieval enhancement chapter, covering hybrid
+  retrieval, vector database integration with Milvus, and an evaluation plan based on
+  retrieval metrics and RAGAS.
+\end{enumerate}
+
+\chapter{Related Work and Technical Background}
+
+\section{Scholarly Retrieval and Semantic Search}
+
+Classical information retrieval remains a strong baseline for document search, with
+probabilistic ranking methods such as BM25 still widely used in practice
+\cite{robertson2009}. However, semantic encoders such as Sentence-BERT make it
+possible to retrieve documents by contextual similarity rather than literal term
+overlap, which is especially important for academic queries containing paraphrases,
+research intent, or incomplete terminology \cite{reimers2019}.
+
+\section{Reranking and Paper Search Agents}
+
+A practical scholarly search pipeline often benefits from multi-stage retrieval. An
+initial recall stage gathers candidates quickly, and a stronger reranker is then used
+to refine the result list. This project already follows that general pattern through
+vector recall plus selector scoring. Recent work such as PaSa further shows that
+paper-search systems can be improved through stronger decision making, selection, and
+tool usage over academic corpora \cite{he2025}.
+
+\section{Retrieval-Augmented Generation and Evaluation}
+
+RAG combines retrieval with generation to improve factual grounding and task-specific
+answer quality \cite{lewis2020}. Even so, retrieval quality remains the upstream
+bottleneck. If relevant evidence is not recalled in the first place, downstream
+generation cannot correct the failure. For this reason, this thesis treats retrieval
+improvement as the immediate engineering priority. RAGAS is relevant here not because
+the current system already completes a full RAG cycle, but because it provides a
+future evaluation framework once retrieval and answer generation are connected into a
+single pipeline \cite{ragas2023}.
+
+\section{Summary}
+
+The literature suggests a clear engineering path: combine sparse and dense retrieval,
+apply stronger reranking, evaluate with explicit retrieval metrics, and only then
+extend to a fully grounded generation module. The remainder of this draft follows
+that logic.
+
+\chapter{System Overview and Current Prototype}
+
+\section{Overall Architecture}
+
+According to the current codebase and the team midterm report, the project is
+organized as a web-based paper search system with four major layers:
+
+\begin{enumerate}
+  \item a frontend interface for search, upload, library browsing, and administrator review;
+  \item a Flask backend for routing, query processing, and API orchestration;
+  \item a local SQLite database storing paper metadata and file references;
+  \item model components for semantic encoding, selector-based scoring, and auxiliary
+  LLM interaction.
+\end{enumerate}
+
+The dataset currently contains 446 papers in the local database, which is consistent
+with the scale reported in the midterm report. Metadata fields include title, authors,
+abstract, year, journal, DOI, review status, and citation-related fields. Optional
+PDF storage is supported either locally or through Tencent Cloud COS.
+
+\section{Functional Modules}
+
+The current prototype is structured around the same module split described in the
+midterm report:
+
+\begin{enumerate}
+  \item \textbf{Main Search Interface.} Users submit Chinese or English search requests.
+  The system supports direct querying and multi-level rewritten querying.
+  \item \textbf{Paper Upload Interface.} Users can upload BibTeX records and PDF files for
+  later review and indexing.
+  \item \textbf{Library View Interface.} Users can browse approved records and inspect
+  paper metadata stored in the database.
+  \item \textbf{Administrator Interface.} Administrators audit submitted entries and
+  maintain data quality through review and modification operations.
+\end{enumerate}
+
+These modules already establish the engineering skeleton required for the later
+retrieval enhancement and eventual full RAG integration.
+
+\section{Current Retrieval and Scoring Workflow}
+
+The current prototype should be described precisely. It does \textbf{not} yet run a
+complete end-to-end RAG pipeline as its main workflow. Instead, its implemented
+retrieval path can be summarized as follows:
+
+\begin{enumerate}
+  \item The user query is preprocessed through language detection, optional Chinese to
+  English translation, spelling correction, and optional broadening or hierarchical
+  rewriting.
+  \item Each paper is represented mainly by title and abstract text and encoded by
+  \texttt{all-MiniLM-L6-v2}.
+  \item Cosine similarity is used to retrieve a candidate set from the local paper
+  collection.
+  \item The candidate list is sent to \texttt{PASA-7B-Selector} for relevance scoring and
+  final filtering.
+\end{enumerate}
+
+This architecture means that the present system already performs semantic retrieval
+and reranking, but it still operates primarily at the paper level. Although some
+auxiliary PDF-based chat and citation analysis functions exist, the system has not yet
+been reorganized around chunk-level evidence retrieval and grounded answer generation
+as the primary interaction pattern.
+
+\section{Current Limitations}
+
+From the perspective of retrieval research, the main limitations of the prototype are
+straightforward:
+
+\begin{enumerate}
+  \item The recall stage relies heavily on dense similarity over title and abstract
+  information, which may miss documents that are lexically important but semantically
+  underrepresented.
+  \item The vector index is still embedded in local application logic rather than a
+  dedicated vector database, which constrains scalability and future chunk-level search.
+  \item The evaluation procedure has not yet been formalized into a retrieval benchmark
+  with standard metrics and ablation experiments.
+  \item Full RAG generation has not been integrated, so answer-level evaluation remains
+  future work.
+\end{enumerate}
+
+These limitations motivate the retrieval enhancement design proposed in the next
+chapter.
+
+\chapter{Retrieval Module Enhancement Design}
+
+\section{Design Objective}
+
+The objective of this chapter is to improve the \textbf{first-round retrieval stage}
+without mischaracterizing the project as a completed RAG system. In other words, the
+purpose of the proposed enhancement is not to claim that answer generation is already
+finished, but to strengthen the retrieval backbone that a later RAG pipeline will
+depend on.
+
+The design therefore keeps the current selector-based ranking logic as a useful
+component and adds three new capabilities around it:
+
+\begin{enumerate}
+  \item hybrid sparse-dense retrieval for more robust candidate recall;
+  \item Milvus-based vector indexing for scalable document and passage search;
+  \item explicit retrieval evaluation before generation-oriented evaluation.
+\end{enumerate}
+
+\section{Planned Hybrid Retrieval Framework}
+
+The present system mainly uses dense semantic recall. A reasonable next step is to
+construct a \textbf{hybrid retrieval} architecture combining sparse lexical evidence and
+dense semantic similarity. The rationale is practical: academic queries often contain
+rare technical terms, benchmark names, model identifiers, and abbreviations that
+lexical retrieval can preserve well, while dense retrieval is better at capturing
+paraphrased intent and broader topic similarity.
+
+The proposed hybrid retrieval workflow is shown conceptually in Table
+\ref{tab:current-vs-planned}.
+
+\begin{table}[htbp]
+\centering
+\caption{Current versus planned retrieval architecture}
+\label{tab:current-vs-planned}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3.1cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\toprule
+Stage & Current prototype & Planned enhancement \\
+\midrule
+Query preprocessing & Translation, spelling correction, multi-level rewriting & Kept and further standardized for evaluation \\
+Sparse retrieval & Not a dedicated stage & BM25 or equivalent lexical search over title, abstract, keywords, and chunk text \\
+Dense retrieval & Sentence-transformer paper-level similarity & Dense search over paper- and chunk-level embeddings \\
+Fusion & Implicitly dense-only & Weighted fusion or reciprocal rank fusion over sparse and dense candidates \\
+Final ranking & PASA-7B-Selector reranking & Selector kept as the final reranker after hybrid recall \\
+Generation & Not the main pipeline & Reserved for the later full RAG stage \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+In this design, sparse and dense retrieval will each produce a candidate list. The two
+lists will then be fused before reranking. A weighted score or reciprocal rank fusion
+(RRF) is a suitable strategy because it is simple, robust, and does not require large
+amounts of supervised calibration data \cite{cormack2009}. This arrangement also fits
+the engineering reality of the project: it improves recall quality without forcing the
+team to complete the whole generation pipeline immediately.
+
+\section{Milvus-Based Vector Index and Chunk Storage}
+
+To support future scalability, the report proposes replacing the current in-process
+vector store with a Milvus-backed index \cite{wang2021milvus}. This change is important
+for two reasons.
+
+First, Milvus provides a dedicated vector database layer for approximate nearest
+neighbor search, metadata filtering, and collection management. That makes it more
+suitable than ad hoc in-memory arrays when the paper collection grows beyond the
+current scale. Second, Milvus offers a natural foundation for \textbf{chunk-level
+retrieval}, which is necessary if the project later transitions from paper-level search
+to passage-grounded response generation.
+
+The planned indexing strategy is as follows:
+
+\begin{enumerate}
+  \item Keep a \textbf{paper-level collection} for global document recall using title,
+  abstract, and structured metadata.
+  \item Add a \textbf{chunk-level collection} for future passage recall, where each record
+  stores paper ID, chunk ID, chunk text, section metadata, and dense embedding.
+  \item Preserve metadata filters such as year, source venue, approval status, and
+  domain tags to support constrained retrieval experiments.
+\end{enumerate}
+
+In the current thesis draft, chunk storage is described as a planned capability rather
+than a completed result. This distinction matters. The thesis can reasonably state
+that Milvus prepares the system for scalable retrieval and later RAG integration, but
+it should not imply that chunk-level production deployment is already finished.
+
+\section{Candidate Fusion and Selector-Based Reranking}
+
+The selector model remains valuable even after hybrid recall is introduced. In fact,
+the proposed enhancement keeps the selector as the \textbf{last-stage relevance
+decision module}. This is consistent with the current prototype, where the selector is
+already the strongest task-specific filter in the retrieval loop.
+
+The redesigned pipeline can therefore be summarized in three stages:
+
+\begin{enumerate}
+  \item \textbf{Candidate generation.} Sparse and dense search independently retrieve a
+  broad candidate pool.
+  \item \textbf{Fusion.} Candidate lists are merged through RRF or a weighted combination.
+  \item \textbf{Task-aware reranking.} The selector scores the fused candidates against the
+  user query and returns the final list.
+\end{enumerate}
+
+This design has an important thesis-level advantage: it presents RAG-related retrieval
+ideas as an \emph{incremental enhancement} to a system the team already has, rather than
+as a disconnected future plan.
+
+\section{Retrieval Metrics and Experimental Protocol}
+
+Because the current milestone is still retrieval-centered, the primary evaluation
+should also remain retrieval-centered. Table \ref{tab:retrieval-metrics} lists the
+recommended metrics for the next experimental phase.
+
+\begin{table}[htbp]
+\centering
+\caption{Recommended retrieval metrics for the next implementation stage}
+\label{tab:retrieval-metrics}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{3cm} >{\raggedright\arraybackslash}X}
+\toprule
+Metric & Purpose in this project \\
+\midrule
+Recall@k & Measures whether relevant papers appear in the top-k retrieved set; suitable for evaluating first-round recall improvement. \\
+MRR & Captures how early the first relevant result appears; useful for interactive search experience. \\
+nDCG@k & Measures ranking quality under graded relevance when some papers are more useful than others. \\
+Hit Rate@k & Provides a simple success indicator for whether at least one relevant item is retrieved. \\
+Latency & Measures practical usability of the retrieval pipeline after Milvus and reranking are integrated. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The benchmark construction can start from a manually curated set of representative
+queries collected from the project team, advisor feedback, and the later user
+acceptance testing phase. Each query should be paired with one or more relevant papers
+from the approved database. Under this setup, the thesis can compare:
+
+\begin{enumerate}
+  \item dense-only retrieval;
+  \item sparse-only retrieval;
+  \item hybrid retrieval without selector reranking;
+  \item hybrid retrieval with selector reranking.
+\end{enumerate}
+
+This evaluation plan is realistic and directly tied to the engineering work that still
+needs to be completed.
+
+\section{RAGAS in the Context of Later Full-Pipeline Evaluation}
+
+RAGAS is included in this report because it offers a structured way to evaluate a full
+RAG system without relying exclusively on expensive human annotation
+\cite{ragas2023}. However, it is important to state its role carefully. Since the
+current project has not yet completed the final answer-generation pipeline, RAGAS
+should be treated as a \textbf{later-stage evaluation layer}, not as the primary metric
+suite for the current milestone.
+
+Once the project advances from paper retrieval to passage-grounded answer generation,
+RAGAS can be used to assess aspects such as:
+
+\begin{enumerate}
+  \item context precision and context recall of the retrieved evidence;
+  \item answer relevancy to the user query;
+  \item faithfulness of generated responses to retrieved context.
+\end{enumerate}
+
+By describing RAGAS in this limited but forward-looking manner, the thesis keeps the
+focus where it belongs: retrieval quality is the immediate problem to solve, while
+generation quality will become measurable after the later RAG pipeline is actually
+implemented.
+
+\section{Relationship to the Future RAG Pipeline}
+
+The proposed retrieval enhancement should be understood as \textbf{preparatory
+infrastructure} for a future RAG system. In the later full pipeline, the retrieval
+module described here will provide higher-quality paper candidates and, eventually,
+chunk-level evidence passages. The downstream generation module can then consume this
+evidence for explanation, summarization, citation assistance, or multi-turn paper
+analysis.
+
+Therefore, the retrieval module is not a side topic. It is the part of the project
+that can be improved immediately and rigorously, while also laying the foundation for
+the later answer-generation stage. This is why the present draft assigns more detail
+to retrieval enhancement than to the rest of the future RAG workflow.
+
+\chapter{Implementation Roadmap and Experimental Framework}
+
+\section{Current Completion Status}
+
+At the time of writing, the project has already completed the local database, the
+main frontend interfaces, core upload and review functions, and the dense
+retrieval-plus-selector prototype described in Chapter 3. These completed parts are
+consistent with the midterm report and form the baseline for the next phase.
+
+\section{Planned Next-Stage Tasks}
+
+The next implementation stage can be organized into the following work packages:
+
+\begin{enumerate}
+  \item Introduce sparse retrieval over metadata and chunk text.
+  \item Build Milvus collections for paper-level and later chunk-level indexing.
+  \item Implement rank fusion and integrate it with the existing selector reranker.
+  \item Construct a small but reliable retrieval benchmark for offline evaluation.
+  \item Add the final answer-generation module after retrieval quality is stabilized.
+\end{enumerate}
+
+\section{Experimental Notes and Draft Placeholders}
+
+\draftnote{This chapter is intentionally kept as a framework chapter in the current
+draft. Final ablation tables, latency measurements, hyperparameter choices, and user
+study results will be added after the retrieval enhancement is implemented and tested.}
+
+\section{Summary}
+
+The roadmap confirms the intended development order of the project: improve retrieval
+first, evaluate retrieval explicitly, and then integrate the later full RAG pipeline
+on top of a stronger retrieval backbone.
+
+\chapter{Conclusion and Future Work}
+
+This draft reorganizes the project into a thesis-style report and clarifies the real
+status of the system. The current prototype has already established a functioning
+paper search platform with semantic recall and selector-based filtering, but it should
+still be described primarily as a retrieval system rather than a completed RAG
+pipeline.
+
+The main contribution of this draft is the retrieval enhancement chapter, which
+proposes hybrid retrieval, Milvus-based indexing, standard retrieval metrics, and
+future RAGAS-assisted evaluation. This framing is technically more accurate for the
+project's current stage and also more useful for later implementation. Future work
+will complete the retrieval upgrade, connect chunk-level evidence retrieval to answer
+generation, and expand the report with formal experiments and deployment results.
+
+\chapter*{References}
+\addcontentsline{toc}{chapter}{References}
+
+\begin{thebibliography}{99}
+
+\bibitem{cormack2009}
+Cormack, G. V., Clarke, C. L. A., \& B\"uttcher, S. (2009).
+Reciprocal rank fusion outperforms condorcet and individual rank learning methods.
+\textit{Proceedings of the 32nd International ACM SIGIR Conference on Research and Development in Information Retrieval}, 758--759.
+
+\bibitem{croft2010}
+Croft, W. B., Metzler, D., \& Strohman, T. (2010).
+\textit{Search Engines: Information Retrieval in Practice}.
+Addison-Wesley.
+
+\bibitem{he2025}
+He, Y., Huang, G., Feng, P., Lin, Y., Zhang, Y., Li, H., \& E, W. (2025).
+PaSa: An LLM Agent for Comprehensive Academic Paper Search.
+\textit{Proceedings of the 63rd Annual Meeting of the Association for Computational Linguistics}.
+
+\bibitem{lewis2020}
+Lewis, P., Perez, E., Piktus, A., Petroni, F., Karpukhin, V., Goyal, N., et al. (2020).
+Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.
+\textit{Advances in Neural Information Processing Systems}, 33, 9459--9474.
+
+\bibitem{ragas2023}
+Es, S., James, J., Espinosa Anke, L., \& Schockaert, S. (2023).
+RAGAS: Automated Evaluation of Retrieval Augmented Generation.
+\textit{CoRR}, arXiv:2309.15217.
+
+\bibitem{reimers2019}
+Reimers, N., \& Gurevych, I. (2019).
+Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks.
+\textit{Proceedings of the 2019 Conference on Empirical Methods in Natural Language Processing}, 3982--3992.
+
+\bibitem{robertson2009}
+Robertson, S. E., \& Zaragoza, H. (2009).
+The Probabilistic Relevance Framework: BM25 and Beyond.
+\textit{Foundations and Trends in Information Retrieval}, 3(4), 333--389.
+
+\bibitem{wang2021milvus}
+Wang, J., Yi, X., Guo, R., Jin, H., Xu, P., Li, S., et al. (2021).
+Milvus: A Purpose-Built Vector Data Management System.
+\textit{Proceedings of the 2021 International Conference on Management of Data}, 2614--2627.
+
+\end{thebibliography}
+
+\end{document}
