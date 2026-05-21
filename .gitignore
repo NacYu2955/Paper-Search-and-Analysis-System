@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local environments and secrets
+.env
+.env.*
+!.env.example
+
+# IDE/editor files
+.vscode/
+.idea/
+
+# Runtime data and generated outputs
+output/
+src/pdfs/
+src/resources/
+*.db
+*.sqlite
+*.sqlite3
+
+# Large local models/checkpoints
+model/
+*.bin
+*.safetensors
+*.onnx
+*.h5
+*.ot
+
+# Generated datasets
+dataset/sft/
+
+# Notebook/runtime artifacts
+.ipynb_checkpoints/
+
