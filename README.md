@@ -24,12 +24,82 @@ An intelligent paper retrieval system based on deep learning, supporting real-ti
 
 1. **Frontend**: HTML5 + JavaScript + Bootstrap + Socket.IO
 2. **Backend**: Flask + SQLite + WebSocket
-3. **AI Models**: 
+3. **AI Models**:
    - SentenceTransformer (all-MiniLM-L6-v2)
-   - PASA-7B-Selector (Paper Selection Model)
+   - Fine-tuned Qwen/PASA selector used as a rerank model
    - DeepSeek API (Query Generation and Dialogue)
-4. **Storage**: Tencent Cloud COS + Local SQLite
-5. **Network**: Peanut Shell Intranet Penetration
+4. **Retrieval**: Milvus dense vector retrieval as the RAG pre-retrieval stage
+5. **Storage**: Tencent Cloud COS + Local SQLite
+6. **Network**: Peanut Shell Intranet Penetration
+
+### RAG Retrieval Flow
+
+The retrieval path is now organized as:
+
+```text
+papers.db -> one paper as one complete chunk -> SentenceTransformer embedding
+          -> Milvus dense retrieval top-k candidates
+          -> fine-tuned Qwen rerank
+          -> existing Flask search response
+```
+
+The RAG implementation lives under `src/paper_rag/`:
+
+| Path | Responsibility |
+|------|----------------|
+| `src/paper_rag/loader.py` | Load the 446 paper records directly from `papers.db` |
+| `src/paper_rag/documents.py` | Convert one paper into one complete retrieval chunk |
+| `src/paper_rag/milvus_store.py` | Milvus vector-store adapter with in-memory fallback |
+| `src/paper_rag/sparse_store.py` | BM25 sparse lexical retrieval over paper chunks |
+| `src/paper_rag/fusion.py` | Reciprocal Rank Fusion for dense + sparse rankings |
+| `src/paper_rag/reranker.py` | Fine-tuned Qwen rerank wrapper |
+| `src/paper_rag/pipeline.py` | End-to-end dense/sparse/hybrid retrieval pipeline |
+| `scripts/build_rag_index.py` | Manual Milvus index build/rebuild entrypoint |
+| `scripts/evaluate_retrieval.py` | Closed-corpus dense/sparse/hybrid evaluation entrypoint |
+
+Useful RAG environment variables:
+
+```bash
+export RAG_MILVUS_URI="./data/milvus/paper_rag.db"
+export RAG_MILVUS_COLLECTION="paper_rag_chunks"
+export RAG_RETRIEVAL_MODE="dense"  # dense, sparse, or hybrid
+export RAG_RETRIEVAL_TOP_K=50
+export RAG_RERANK_TOP_K=5
+export RAG_ENABLE_RERANK=false
+```
+
+Build or refresh the Milvus index from `papers.db`:
+
+```bash
+python scripts/build_rag_index.py --force
+```
+
+Test only the pre-retrieval stage before rerank:
+
+```bash
+python scripts/test_preretrieval.py "neural architecture search" --top-k 10 --mode dense --force
+python scripts/test_preretrieval.py "neural architecture search" --top-k 10 --mode sparse
+python scripts/test_preretrieval.py "neural architecture search" --top-k 10 --mode hybrid
+```
+
+Evaluate the closed-corpus retrieval benchmark:
+
+```bash
+python scripts/evaluate_retrieval.py --retrieval-mode all --candidate-k 50 --final-k 5
+python scripts/evaluate_retrieval.py --retrieval-mode hybrid --candidate-k 50 --final-k 5 --rerank --no-threshold
+python scripts/evaluate_retrieval.py --retrieval-mode hybrid --candidate-k 50 --final-k 5 --rerank
+```
+
+The evaluation script reports two stages:
+
+```text
+Candidate stage: dense, sparse, or hybrid top-K before rerank
+Final stage: final top-K shown to users, either retrieval-only or after rerank
+```
+
+It writes summary JSON, per-query details, per-run metrics CSV, and aggregate metrics
+CSV to `output/eval/`. The metrics CSV includes Hit, Recall, AllGT, MRR, mean latency,
+P50 latency, and P95 latency.
 
 ### Database Structure
 

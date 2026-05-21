@@ -1,17 +1,27 @@
-import json
-import numpy as np
 import os
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
 import torch
-from models import Agent
 from openai import OpenAI
-import sqlite3
-from transformers import AutoModelForCausalLM
-from dbutils.pooled_db import PooledDB
 from symspellpy import SymSpell, Verbosity
 import re
-from config import DEEPSEEK_API_KEY, DEEPSEEK_BASE_URL
+from config import (
+    DATABASE_PATH,
+    DEEPSEEK_API_KEY,
+    DEEPSEEK_BASE_URL,
+    EMBEDDING_MODEL_NAME,
+    RAG_EMBED_BATCH_SIZE,
+    RAG_ENABLE_RERANK,
+    RAG_ENABLE_IN_MEMORY_FALLBACK,
+    RAG_ENABLE_MILVUS,
+    RAG_MAX_TEXT_CHARS,
+    RAG_MILVUS_COLLECTION,
+    RAG_MILVUS_URI,
+    RAG_RERANK_TOP_K,
+    RAG_RETRIEVAL_TOP_K,
+    RAG_RETRIEVAL_MODE,
+    RAG_RRF_K,
+)
+from src.paper_rag import QwenReranker, RAGPipeline
 
 # 设置环境变量以优化内存使用
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
@@ -24,22 +34,34 @@ class PaperSearch:
         :param selector_path: pasa-7b-selector模型路径
         """
         try:
-            if not os.path.exists(model_path):
-                raise FileNotFoundError(f"模型路径不存在: {model_path}")
-                
-            print(f"正在从本地加载模型: {model_path}")
-            self.model = SentenceTransformer(model_path, device='cuda' if torch.cuda.is_available() else 'cpu')
+            embedding_model_source = model_path if os.path.exists(model_path) else EMBEDDING_MODEL_NAME
+            if embedding_model_source != model_path:
+                print(f"本地embedding模型不存在: {model_path}")
+                print(f"改用模型名称加载embedding模型: {embedding_model_source}")
+
+            print(f"正在加载embedding模型: {embedding_model_source}")
+            self.model = SentenceTransformer(
+                embedding_model_source,
+                device='cuda' if torch.cuda.is_available() else 'cpu'
+            )
             print("模型加载完成")
             
-            # 初始化selector模型
-            if selector_path:
-                print(f"正在加载selector模型: {selector_path}")
-                self.selector = Agent(selector_path)
-                print("selector模型加载完成")
-                # 加载提示模板
-                self.prompts = json.load(open("agent_prompt.json"))
+            # 初始化rerank模型。这里保留selector字段，兼容旧接口。
+            if RAG_ENABLE_RERANK and selector_path and os.path.exists(selector_path):
+                print(f"正在加载Qwen rerank模型: {selector_path}")
+                prompt_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_prompt.json")
+                self.reranker = QwenReranker(selector_path, prompt_path=prompt_path)
+                self.selector = self.reranker.agent
+                self.prompts = self.reranker.prompts
+                print("Qwen rerank模型加载完成")
             else:
+                if RAG_ENABLE_RERANK and selector_path and not os.path.exists(selector_path):
+                    print(f"Qwen rerank模型路径不存在，跳过rerank: {selector_path}")
+                else:
+                    print("RAG rerank未启用，仅使用Milvus预检索")
+                self.reranker = QwenReranker(None)
                 self.selector = None
+                self.prompts = self.reranker.prompts
             
             # 初始化DeepSeek客户端
             self.deepseek_client = OpenAI(
@@ -72,31 +94,34 @@ class PaperSearch:
 
         self.papers = []
         self.embeddings = None
+        self.rag_pipeline = RAGPipeline(
+            embedding_model=self.model,
+            database_path=DATABASE_PATH,
+            milvus_uri=RAG_MILVUS_URI,
+            collection_name=RAG_MILVUS_COLLECTION,
+            enable_milvus=RAG_ENABLE_MILVUS,
+            enable_fallback=RAG_ENABLE_IN_MEMORY_FALLBACK,
+            max_text_chars=RAG_MAX_TEXT_CHARS,
+            embed_batch_size=RAG_EMBED_BATCH_SIZE,
+            rrf_k=RAG_RRF_K,
+        )
         
     def load_papers(self):
-        """从papers.db数据库加载论文"""
+        """从papers.db加载论文，并同步到Milvus RAG索引"""
         try:
-            if not os.path.exists("papers.db"):
-                raise FileNotFoundError("找不到papers.db文件")
-            conn = sqlite3.connect("papers.db")
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM papers")
-            rows = cursor.fetchall()
-            self.papers = []
-            for row in rows:
-                paper = dict(row)
-                self.papers.append(paper)
-            conn.close()
+            if not os.path.exists(DATABASE_PATH):
+                raise FileNotFoundError(f"找不到papers.db文件: {DATABASE_PATH}")
+
+            documents = self.rag_pipeline.build_index(force=False)
+            self.papers = [doc.paper for doc in documents]
+            self.embeddings = self.rag_pipeline.embeddings
 
             if not self.papers:
                 raise ValueError("papers.db数据库为空")
-            # 生成论文的文本表示
-            texts = [f"{paper['title']} {paper['abstract']}" for paper in self.papers]
-            # 计算embeddings
-            print("正在计算论文向量...")
-            self.embeddings = self.model.encode(texts, show_progress_bar=True, batch_size=32)
-            print(f"完成向量计算,共 {len(self.papers)} 篇论文")
+            print(
+                f"RAG索引加载完成，共 {len(self.papers)} 篇论文，"
+                f"检索后端: {self.rag_pipeline.backend_name}"
+            )
         except Exception as e:
             print(f"加载论文数据失败: {str(e)}")
             raise
@@ -148,22 +173,39 @@ Citation Suggestion:
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
 
+    def dense_retrieve(self, query_text, top_k=None):
+        """Milvus-backed dense retrieval for the RAG pre-retrieval stage."""
+        if self.rag_pipeline is None:
+            self.load_papers()
+
+        retrieval_k = top_k or RAG_RETRIEVAL_TOP_K
+        retrieved = self.rag_pipeline.retrieve(
+            query_text,
+            top_k=retrieval_k,
+            mode=RAG_RETRIEVAL_MODE,
+        )
+        candidate_results = []
+        for result in retrieved:
+            paper = result["paper"]
+            candidate_results.append({
+                "paper": paper,
+                "similarity": result["similarity"],
+                "bibtex": self.generate_bibtex(paper),
+                "chunk_text": result.get("chunk_text", ""),
+                "retrieval_backend": result.get("retrieval_backend", "milvus"),
+            })
+        return candidate_results
+
     def batch_process_selector(self, results, user_query, batch_size=4, callback=None):
-        """分批处理selector评分，支持回调函数实时推送结果"""
+        """分批处理Qwen rerank评分，支持回调函数实时推送结果"""
         scores = []
         for i in range(0, len(results), batch_size):
             batch = results[i:i + batch_size]
-            select_prompts = []
-            for result in batch:
-                paper = result['paper']
-                prompt = self.prompts["get_selected"].format(
-                    title=paper['title'],
-                    abstract=paper.get('abstract', ''),
-                    user_query=user_query
-                )
-                select_prompts.append(prompt)
             try:
-                batch_scores = self.selector.infer_score(select_prompts)
+                if self.reranker and self.reranker.available:
+                    batch_scores = self.reranker.score(batch, user_query)
+                else:
+                    batch_scores = [0.0] * len(batch)
                 scores.extend(batch_scores)
                 
                 # 为当前批次的结果添加评分
@@ -438,13 +480,14 @@ Level 3 (Specific): show me research on [最具体查询]"""
             # 如果翻译失败，返回原文
             return chinese_text
 
-    def search_papers(self, query_paper, top_k=5, user_query=None, mode='multi-level', target_level=None):
+    def search_papers(self, query_paper, top_k=None, user_query=None, mode='multi-level', target_level=None):
         """
         支持两种模式：
         - mode='original'：只返回原文查询结果（不分级）
         - mode='multi-level'：返回指定level的结果
         :param target_level: 指定要搜索的level（1-3），如果为None则使用原文查询
         """
+        top_k = top_k or RAG_RERANK_TOP_K
         original_query = query_paper if isinstance(query_paper, str) else f"{query_paper['title']} {query_paper.get('abstract', '')}"
         corrected_query = None
         
@@ -459,19 +502,8 @@ Level 3 (Specific): show me research on [最具体查询]"""
 
         # 原文查询模式直接使用向量检索
         if mode == 'original' or target_level is None:
-            print("\n使用原文查询模式...")
-            query_embedding = self.model.encode([query_text])[0]
-            similarities = cosine_similarity([query_embedding], self.embeddings)[0]
-            indices = np.argsort(similarities)[::-1][:50]
-            candidate_results = []
-            for idx in indices:
-                paper = self.papers[idx]
-                bibtex = self.generate_bibtex(paper)
-                candidate_results.append({
-                    "paper": paper,
-                    "similarity": similarities[idx],
-                    "bibtex": bibtex
-                })
+            print("\n使用RAG原文查询模式...")
+            candidate_results = self.dense_retrieve(query_text, top_k=RAG_RETRIEVAL_TOP_K)
             print(f"\n找到 {len(candidate_results)} 篇候选论文")
             
             # 格式化候选结果
@@ -489,10 +521,10 @@ Level 3 (Specific): show me research on [最具体查询]"""
                 }
                 formatted_candidates.append(formatted_result)
             
-            # 使用 selector 过滤结果
-            if self.selector:
+            # 使用Qwen rerank过滤结果
+            if self.reranker and self.reranker.available:
                 try:
-                    print("\n使用selector进行过滤...")
+                    print("\n使用Qwen rerank进行过滤...")
                     select_scores = self.batch_process_selector(candidate_results, query_text)
                     for i, result in enumerate(candidate_results):
                         result['select_score'] = select_scores[i]
@@ -510,10 +542,10 @@ Level 3 (Specific): show me research on [最具体查询]"""
                         print("没有论文评分大于0.5，返回评分最高的1篇论文")
                         candidate_results = candidate_results[:1]
                     else:
-                        candidate_results = filtered_results
+                        candidate_results = filtered_results[:top_k]
                     print(f"\n筛选后保留 {len(candidate_results)} 篇论文")
                 except Exception as e:
-                    print(f"Selector过滤失败: {str(e)}")
+                    print(f"Qwen rerank过滤失败: {str(e)}")
                     print("将使用相似度排序结果")
                     candidate_results = candidate_results[:top_k]
             else:
@@ -550,18 +582,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
         query = queries[target_level]
         print(f"生成的查询: {query}")
         
-        query_embedding = self.model.encode([query])[0]
-        similarities = cosine_similarity([query_embedding], self.embeddings)[0]
-        indices = np.argsort(similarities)[::-1][:50]
-        candidate_results = []
-        for idx in indices:
-            paper = self.papers[idx]
-            bibtex = self.generate_bibtex(paper)
-            candidate_results.append({
-                "paper": paper,
-                "similarity": similarities[idx],
-                "bibtex": bibtex
-            })
+        candidate_results = self.dense_retrieve(query, top_k=RAG_RETRIEVAL_TOP_K)
         print(f"\n找到 {len(candidate_results)} 篇候选论文")
         
         formatted_candidates = []
@@ -578,9 +599,9 @@ Level 3 (Specific): show me research on [最具体查询]"""
             }
             formatted_candidates.append(formatted_result)
             
-        if self.selector:
+        if self.reranker and self.reranker.available:
             try:
-                print(f"\n使用selector进行过滤: {query}")
+                print(f"\n使用Qwen rerank进行过滤: {query}")
                 select_scores = self.batch_process_selector(candidate_results, query)
                 for i, result in enumerate(candidate_results):
                     result['select_score'] = select_scores[i]
@@ -598,10 +619,10 @@ Level 3 (Specific): show me research on [最具体查询]"""
                     print(f"没有论文评分大于0.5，返回评分最高的1篇论文")
                     candidate_results = candidate_results[:1]
                 else:
-                    candidate_results = filtered_results
+                    candidate_results = filtered_results[:top_k]
                 print(f"\n筛选后保留 {len(candidate_results)} 篇论文")
             except Exception as e:
-                print(f"Selector过滤失败: {str(e)}")
+                print(f"Qwen rerank过滤失败: {str(e)}")
                 print("将使用相似度排序结果")
                 candidate_results = candidate_results[:top_k]
         else:
@@ -665,19 +686,8 @@ Level 3 (Specific): show me research on [最具体查询]"""
 
         # 原文查询模式直接使用向量检索
         if mode == 'original' or target_level is None:
-            print("\n使用原文查询模式...")
-            query_embedding = self.model.encode([query_text])[0]
-            similarities = cosine_similarity([query_embedding], self.embeddings)[0]
-            indices = np.argsort(similarities)[::-1][:50]
-            candidate_results = []
-            for idx in indices:
-                paper = self.papers[idx]
-                bibtex = self.generate_bibtex(paper)
-                candidate_results.append({
-                    "paper": paper,
-                    "similarity": similarities[idx],
-                    "bibtex": bibtex
-                })
+            print("\n使用RAG原文查询模式...")
+            candidate_results = self.dense_retrieve(query_text, top_k=RAG_RETRIEVAL_TOP_K)
             print(f"\n找到 {len(candidate_results)} 篇候选论文")
             
             # 格式化候选结果
@@ -695,10 +705,10 @@ Level 3 (Specific): show me research on [最具体查询]"""
                 }
                 formatted_candidates.append(formatted_result)
             
-            # 使用 selector 过滤结果，支持实时推送
-            if self.selector:
+            # 使用Qwen rerank过滤结果，支持实时推送
+            if self.reranker and self.reranker.available:
                 try:
-                    print("\n使用selector进行过滤...")
+                    print("\n使用Qwen rerank进行过滤...")
                     # 使用回调函数进行实时推送
                     select_scores = self.batch_process_selector(candidate_results, query_text, batch_size=4, callback=callback)
                     
@@ -719,15 +729,17 @@ Level 3 (Specific): show me research on [最具体查询]"""
                     if not filtered_results:
                         print("没有论文评分大于0.5，返回评分最高的1篇论文")
                         filtered_results = unique_results[:1]
+                    else:
+                        filtered_results = filtered_results[:RAG_RERANK_TOP_K]
                     
                     print(f"\n筛选后保留 {len(filtered_results)} 篇论文")
                     
                 except Exception as e:
-                    print(f"Selector过滤失败: {str(e)}")
+                    print(f"Qwen rerank过滤失败: {str(e)}")
                     print("将使用相似度排序结果")
-                    filtered_results = candidate_results[:5]
+                    filtered_results = candidate_results[:RAG_RERANK_TOP_K]
             else:
-                filtered_results = candidate_results[:5]
+                filtered_results = candidate_results[:RAG_RERANK_TOP_K]
             
             # 格式化最终结果
             formatted_results = []
@@ -759,18 +771,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
         query = queries[target_level]
         print(f"生成的查询: {query}")
         
-        query_embedding = self.model.encode([query])[0]
-        similarities = cosine_similarity([query_embedding], self.embeddings)[0]
-        indices = np.argsort(similarities)[::-1][:50]
-        candidate_results = []
-        for idx in indices:
-            paper = self.papers[idx]
-            bibtex = self.generate_bibtex(paper)
-            candidate_results.append({
-                "paper": paper,
-                "similarity": similarities[idx],
-                "bibtex": bibtex
-            })
+        candidate_results = self.dense_retrieve(query, top_k=RAG_RETRIEVAL_TOP_K)
         print(f"\n找到 {len(candidate_results)} 篇候选论文")
         
         formatted_candidates = []
@@ -787,9 +788,9 @@ Level 3 (Specific): show me research on [最具体查询]"""
             }
             formatted_candidates.append(formatted_result)
             
-        if self.selector:
+        if self.reranker and self.reranker.available:
             try:
-                print(f"\n使用selector进行过滤: {query}")
+                print(f"\n使用Qwen rerank进行过滤: {query}")
                 # 使用回调函数进行实时推送
                 select_scores = self.batch_process_selector(candidate_results, query, batch_size=4, callback=callback)
                 
@@ -810,15 +811,17 @@ Level 3 (Specific): show me research on [最具体查询]"""
                 if not filtered_results:
                     print(f"没有论文评分大于0.5，返回评分最高的1篇论文")
                     filtered_results = unique_results[:1]
+                else:
+                    filtered_results = filtered_results[:RAG_RERANK_TOP_K]
                 
                 print(f"\n筛选后保留 {len(filtered_results)} 篇论文")
                 
             except Exception as e:
-                print(f"Selector过滤失败: {str(e)}")
+                print(f"Qwen rerank过滤失败: {str(e)}")
                 print("将使用相似度排序结果")
-                filtered_results = candidate_results[:5]
+                filtered_results = candidate_results[:RAG_RERANK_TOP_K]
         else:
-            filtered_results = candidate_results[:5]
+            filtered_results = candidate_results[:RAG_RERANK_TOP_K]
             
         formatted_results = []
         for result in filtered_results:
@@ -951,7 +954,7 @@ def main():
         
         # 输出相似论文的基本信息
         print(f"\n输入论文标题: {query_title}")
-        print(f"使用selector进行过滤，查询要求: {user_query}")
+        print(f"使用Qwen rerank进行过滤，查询要求: {user_query}")
         print("\n找到的相似论文:")
         for level, results in similar_papers.items():
             level_name = "原始查询" if level == "level_0" else f"第{level.split('_')[1]}级查询"
@@ -973,4 +976,4 @@ def main():
         raise
 
 if __name__ == "__main__":
-    main() 
+    main()

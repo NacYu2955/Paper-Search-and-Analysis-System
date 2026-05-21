@@ -14,8 +14,8 @@ from werkzeug.utils import secure_filename
 import uuid
 import requests
 from config import (
-    MODEL_PATH, SELECTOR_PATH, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, 
-    HOST, PORT, DEBUG, COS_SECRET_ID, COS_SECRET_KEY, COS_REGION, 
+    DATABASE_PATH, MODEL_PATH, SELECTOR_PATH, UPLOAD_FOLDER, ALLOWED_EXTENSIONS,
+    HOST, PORT, DEBUG, COS_SECRET_ID, COS_SECRET_KEY, COS_REGION,
     COS_BUCKET_NAME, COS_FOLDER, USE_COS_STORAGE
 )
 import PyPDF2
@@ -61,7 +61,7 @@ else:
 
 
 def get_db():
-    conn = sqlite3.connect('papers.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -484,7 +484,8 @@ def check_searcher_status():
                     'message': '搜索器已初始化',
                     'paper_count': paper_count,
                     'has_model': hasattr(searcher, 'model'),
-                    'has_selector': hasattr(searcher, 'selector')
+                    'has_selector': hasattr(searcher, 'selector'),
+                    'retrieval_backend': getattr(getattr(searcher, 'rag_pipeline', None), 'backend_name', 'unknown')
                 })
             except Exception as e:
                 return jsonify({
