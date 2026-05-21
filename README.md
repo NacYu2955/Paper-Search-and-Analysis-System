@@ -1,267 +1,249 @@
-# Paper Search and Analysis System
+# PASA: Paper Search and Analysis System
 
-An intelligent paper retrieval system based on deep learning, supporting real-time search, multi-turn dialogue, PDF management, and citation analysis.
+PASA is a Flask-based academic paper search system for a closed paper corpus. It combines sentence-embedding retrieval, an optional PASA/Qwen selector reranker, DeepSeek-powered query rewriting and analysis, PDF management, and a separate RAG evaluation pipeline for dense, sparse, and hybrid retrieval experiments.
 
-## 🌐 Online Access
+The web application is designed for interactive paper discovery: users can search in natural language, receive real-time results through Socket.IO, inspect paper metadata, generate BibTeX, upload and review papers, view PDFs, and ask citation-oriented questions about selected papers.
 
-**Project Website**: [http://dicalab-paper.com](http://dicalab-paper.com)
+## Features
 
----
+- Semantic paper search with `all-MiniLM-L6-v2` embeddings.
+- Optional local selector reranking with `model/pasa-7b-selector`.
+- Real-time search result streaming through Flask-SocketIO.
+- Chinese query translation and English spelling correction before retrieval.
+- DeepSeek API integration for query rewriting, paper analysis, citation suggestions, and paper chat.
+- PDF upload, preview, download, and text extraction.
+- Tencent COS support for cloud PDF storage, with local storage fallback.
+- Admin pages for pending paper review, paper updates, deletion, duplicate checks, and search statistics.
+- RAG utilities for Milvus/in-memory dense retrieval, BM25 sparse retrieval, hybrid Reciprocal Rank Fusion, and evaluation reports.
 
-## 🚀 System Features
+## Repository Layout
 
-- **Intelligent Search**: Hybrid retrieval based on semantic vector similarity and large model understanding
-- **Real-time Push**: WebSocket real-time push of search results
-- **Multi-language Support**: Support for Chinese and English queries with automatic translation
-- **PDF Management**: Support for PDF file upload, storage, and viewing
-- **Citation Analysis**: Intelligent analysis of paper citation relationships and dialogue
-- **Spell Check**: Automatic correction of spelling errors in queries
-- **Broad Query**: Automatic conversion of long queries to broad queries
-
-## 🏗️ System Architecture
-
-### Core Components
-
-1. **Frontend**: HTML5 + JavaScript + Bootstrap + Socket.IO
-2. **Backend**: Flask + SQLite + WebSocket
-3. **AI Models**: 
-   - SentenceTransformer (all-MiniLM-L6-v2)
-   - PASA-7B-Selector (Paper Selection Model)
-   - DeepSeek API (Query Generation and Dialogue)
-4. **Storage**: Tencent Cloud COS + Local SQLite
-5. **Network**: Peanut Shell Intranet Penetration
-
-### Database Structure
-
-The system uses SQLite database to store paper information, with the following main fields:
-
-| Field Name | Type | Description |
-|------------|------|-------------|
-| id | INTEGER | Paper unique identifier |
-| title | TEXT | Paper title |
-| authors | TEXT | Author information |
-| abstract | TEXT | Paper abstract |
-| year | INTEGER | Publication year |
-| journal | TEXT | Journal name |
-| doi | TEXT | DOI identifier |
-| status | TEXT | Paper status |
-| submitter | TEXT | Submitter |
-| review_comment | TEXT | Review comments |
-| reviewed_by | TEXT | Reviewer |
-| submitted_at | DATETIME | Submission time |
-| reviewed_at | DATETIME | Review time |
-| type | TEXT | Paper type |
-| citation_key | TEXT | Citation key |
-| booktitle | TEXT | Book title/Conference name |
-| organization | TEXT | Organization/Institution |
-| volume | TEXT | Volume number |
-| number | TEXT | Issue number |
-| pages | TEXT | Page numbers |
-| publisher | TEXT | Publisher |
-| citations | TEXT | Citation information |
-| pdf_file_path | TEXT | PDF file path |
-
-## 🔧 External Interfaces and Platforms
-
-### AI Models and APIs
-
-1. **DeepSeek API**
-   - Purpose: Query generation, multi-turn dialogue, citation analysis
-   - Configuration: `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL`
-   - Cost: Billed by token usage (Input ¥0.5-2/million tokens, Output ¥8/million tokens)
-
-2. **SentenceTransformer (all-MiniLM-L6-v2)**
-   - Purpose: Text vectorization
-   - Deployment: Local loading
-   - Cost: Free open-source model
-
-3. **PASA-7B-Selector**
-   - Purpose: Paper relevance scoring
-   - Deployment: Local loading (7B parameters)
-   - Cost: Free open-source model
-
-### Cloud Services
-
-1. **Tencent Cloud COS (Object Storage)**
-   - Purpose: PDF file storage
-   - Configuration: `COS_SECRET_ID`, `COS_SECRET_KEY`, `COS_REGION`, `COS_BUCKET_NAME`
-   - Cost: Object storage resource package ¥9.77/year + traffic fee ¥3.5/GB
-
-2. **Peanut Shell Intranet Penetration**
-   - Purpose: Public network access
-   - Deployment: Local service
-   - Domain: dicalab-paper.com
-   - Cost: Professional version ¥398/year
-
-### Hardware Requirements
-
-- **GPU**: NVIDIA RTX 3090 (24GB VRAM)
-- **Memory**: Recommended 32GB+ RAM
-- **Storage**: Recommended 100GB+ SSD
-- **Network**: Stable internet connection
-
-## 💰 System Costs
-
-### Hardware Costs
-
-1. **GPU Memory Usage**
-   - PASA-7B-Selector: ~14GB
-   - SentenceTransformer: ~2GB
-   - Total: ~16GB (3090 24GB sufficient)
-
-2. **Memory Usage**
-   - Model loading: ~8GB
-   - Paper vectors: ~2GB
-   - System operation: ~4GB
-   - Total: ~14GB
-
-3. **Storage Costs**
-   - Model files: ~31GB
-   - Paper database: ~100MB
-   - PDF files: Grows as needed
-   - Total: ~31GB base
-
-### Cloud Service Costs
-
-1. **DeepSeek API**
-   - Input (cache hit): ¥0.5/million tokens
-   - Input (cache miss): ¥2/million tokens
-   - Output: ¥8/million tokens
-
-2. **Tencent Cloud COS**
-   - Object storage resource package: ¥9.77/year
-   - Traffic fee: ¥3.5/GB (as needed)
-
-3. **Peanut Shell**
-   - Professional version: ¥398/year (dicalab-paper.com domain)
-   - Domain service: ¥99/year (dicalab-paper.com)
-   - HTTP/HTTPS mapping service: ¥10/year
-
-### Purchased Service Costs
-
-- **Peanut Shell Professional**: ¥398/year
-- **Domain Service (dicalab-paper.com)**: ¥99/year
-- **HTTP/HTTPS Mapping Service**: ¥10/year
-- **Tencent Cloud COS Object Storage Resource Package**: ¥9.77/year
-- **Total Fixed Annual Fee**: ¥516.77/year
-
-### Pay-as-you-go Services
-
-- **DeepSeek API**: Billed by token usage
-- **Tencent Cloud COS Traffic Fee**: Billed by actual traffic
-- **Optimization Suggestion**: Cache common query results, improve DeepSeek cache hit rate
-
-## 🔄 System Maintenance
-
-### Server Restart
-
-- **Frequency**: Automatic restart every 30 days
-- **Reason**: Release memory, update system, clean cache
-- **Impact**: Service interruption about 2-3 minutes
-
-## 📦 Installation and Deployment
-
-### Data Preparation
-
-**Important**: This project does not include pre-built database files. Users need to:
-- Prepare paper data themselves
-- Or use the system's upload function to add papers
-- Database file `papers.db` will be automatically created on first run
-
-### Installation Steps
-
-1. **Clone Project**
-```bash
-git clone https://github.com/NacYu2955/Paper-Search-and-Analysis-System.git
+```text
+.
+|-- app.py                         # Main Flask + Socket.IO web application
+|-- config/
+|   `-- config.py                  # Runtime paths, model paths, API keys, COS, and RAG settings
+|-- coding/
+|   |-- paper_search.py            # Main semantic search, query rewriting, rerank, BibTeX, analysis
+|   |-- models.py                  # Local selector model wrapper
+|   |-- cos_utils.py               # Tencent COS upload/download/presigned URL helpers
+|   |-- db_models.py               # SQLAlchemy model definitions
+|   `-- setup_cos.py               # Interactive COS setup helper
+|-- rag/
+|   |-- paper_rag/                 # RAG loader, dense store, BM25, fusion, reranker, evaluation
+|   `-- scripts/
+|       |-- build_rag_index.py     # Build dense/BM25 retrieval index from papers.db
+|       |-- test_preretrieval.py   # Run a single retrieval query from the command line
+|       `-- evaluate_retrieval.py  # Evaluate dense/sparse/hybrid retrieval and rerank
+|-- src/
+|   |-- papers.db                  # SQLite paper database used by default
+|   |-- agent_prompt.json          # Prompt templates for selector/query tasks
+|   |-- templates/                 # Web UI templates
+|   `-- frequency_dictionary_en_82_765.txt
+|-- dataset/
+|   `-- testset.jsonl              # Retrieval evaluation set
+|-- model/
+|   |-- all-MiniLM-L6-v2/          # Local sentence-transformer model
+|   `-- pasa-7b-selector/          # Local selector/reranker model
+`-- output/eval/                   # Saved evaluation reports
 ```
 
-2. **Install Python Dependencies**
+## Requirements
+
+- Python 3.10+ recommended.
+- CUDA-capable GPU strongly recommended for the selector model.
+- Enough disk space for local model files.
+- A populated SQLite database with a `papers` table.
+- DeepSeek API key for query rewriting, translation, chat, and citation analysis.
+- Tencent COS credentials only if `USE_COS_STORAGE=true`.
+
+Install Python dependencies:
+
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Download Model Files**
-`
-
-Download all-MiniLM-L6-v2 model [https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2)
-
-
-Download PASA-7B-Selector model [https://huggingface.co/bytedance-research/pasa-7b-selector](https://huggingface.co/bytedance-research/pasa-7b-selector)
-
-
-4. **Configure Environment Variables**
-```bash
-export DEEPSEEK_API_KEY="your-api-key"
-export COS_SECRET_ID="your-cos-secret-id"
-export COS_SECRET_KEY="your-cos-secret-key"
-```
-
-5. **Initialize Database**
-```bash
-python -c "from app import init_db; init_db()"
-```
-
-6. **Start Service**
-```bash
-python start.py
-```
-
-**Note**: This project does not include pre-built database files. Users need to:
-- Prepare paper data themselves
-- Or use the system's upload function to add papers
-- Database file `papers.db` will be automatically created on first run
-
-## 🚀 Quick Start
-
-1. **Access System**: [http://dicalab-paper.com](http://dicalab-paper.com)
-2. **Input Query**: Support Chinese and English natural language queries
-3. **View Results**: Real-time push of high-relevance papers
-4. **Deep Analysis**: Click papers to view details and citation analysis
-
-## 📊 Performance Metrics
-
-- **Search Response Time**: 2-5 seconds
-- **Real-time Push Delay**: <1 second
-- **Concurrent Users**: Support 10-20 concurrent users
-- **Paper Library Scale**: Support 100,000+ papers
-- **GPU Utilization**: Average 60-80%
-
-## 🔧 Configuration
-
-### Main Configuration Files
-
-- `config.py`: System configuration
-- `agent_prompt.json`: AI prompt templates
-- `start.py`: Startup script
-
-### Environment Variables
+Optional RAG dense indexing with Milvus Lite requires `pymilvus`, which is used by `rag/paper_rag/milvus_store.py` but is not currently listed in `requirements.txt`:
 
 ```bash
-# DeepSeek API
-DEEPSEEK_API_KEY=your_deepseek_api_key
-DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
-
-# Tencent Cloud COS
-COS_SECRET_ID=your_cos_secret_id
-COS_SECRET_KEY=your_cos_secret_key
-COS_REGION=ap-location
-COS_BUCKET_NAME=your_bucket_name
-
-# System Configuration
-USE_COS_STORAGE=true
-HOST=0.0.0.0
-PORT=6006
+pip install pymilvus
 ```
 
-## 🤝 Contributing
+If Milvus is unavailable and `RAG_ENABLE_IN_MEMORY_FALLBACK=true`, the RAG pipeline falls back to an in-memory vector store.
 
-Welcome to submit Issues and Pull Requests to improve the project.
+## Configuration
 
-## 📞 Contact
+Most settings live in `config/config.py` and can be overridden with environment variables.
 
-For questions or suggestions, please contact via:
-- Email: [xinyu9026@gmail.com]
+Important variables:
 
----
+```bash
+# DeepSeek
+export DEEPSEEK_API_KEY="your-deepseek-api-key"
 
-**Note**: Please ensure all API keys and cloud service configurations are correctly set up before use. 
+# Model paths
+export MODEL_PATH="model/all-MiniLM-L6-v2"
+export SELECTOR_PATH="model/pasa-7b-selector"
+
+# Data paths
+export DATABASE_PATH="src/papers.db"
+export TESTSET_PATH="dataset/testset.jsonl"
+
+# Tencent COS, only required when cloud PDF storage is enabled
+export USE_COS_STORAGE="false"
+export COS_SECRET_ID="your-secret-id"
+export COS_SECRET_KEY="your-secret-key"
+export COS_REGION="ap-guangzhou"
+export COS_BUCKET_NAME="your-bucket"
+
+# RAG
+export RAG_ENABLE_MILVUS="true"
+export RAG_ENABLE_IN_MEMORY_FALLBACK="true"
+export RAG_MILVUS_URI="output/rag/milvus.db"
+export RAG_MILVUS_COLLECTION="pasa_papers"
+```
+
+Security note: do not rely on credentials committed in source files for production. Override them with environment variables and rotate any exposed keys before deployment.
+
+## Database
+
+The default database path is selected from these locations, in order of availability:
+
+1. `src/papers.db`
+2. `src/resources/papers.db`
+3. `/root/autodl-fs/pasa/src/resources/papers.db`
+4. `/autodl-fs/data/pasa/src/resources/papers.db`
+
+`app.py` creates or migrates the `papers` table on startup. Core fields include:
+
+| Field | Purpose |
+| --- | --- |
+| `id` | Paper identifier |
+| `title` | Paper title |
+| `authors` | Author list |
+| `abstract` | Abstract text |
+| `year` | Publication year |
+| `journal` | Journal or venue |
+| `doi` | DOI |
+| `status` | Review status, such as `pending` or `approved` |
+| `submitter` | User who submitted the paper |
+| `review_comment` | Admin review comment |
+| `reviewed_by` | Reviewer identifier |
+| `submitted_at` | Submission timestamp |
+| `reviewed_at` | Review timestamp |
+| `pdf_file_path` | Local path or COS key for the PDF |
+
+The RAG loader currently retrieves every row in `papers` ordered by `id` and builds one retrieval chunk per paper from title, authors, year, venue, keywords, and abstract.
+
+## Run the Web App
+
+Start the Flask-SocketIO server:
+
+```bash
+python app.py
+```
+
+By default the app listens on:
+
+```text
+http://0.0.0.0:6006
+```
+
+Main pages:
+
+- `/` - search interface
+- `/upload` - paper/PDF submission
+- `/admin` - admin dashboard
+- `/admin/review` - pending paper review
+
+Useful API endpoints include `/search`, `/search_realtime`, `/paper_chat`, `/citation_chat`, `/view_pdf/<paper_id>`, `/download_pdf/<paper_id>`, and `/admin/search_stats`.
+
+## Search Flow
+
+1. `PaperSearch` loads the local sentence-transformer model.
+2. Paper records are loaded from SQLite.
+3. Title and abstract text are embedded for semantic similarity search.
+4. User queries are normalized:
+   - Chinese text can be translated to English through DeepSeek.
+   - English spelling can be corrected with SymSpell.
+5. The top semantic candidates are selected by cosine similarity.
+6. If the selector model is available, candidates are reranked and filtered by selector score.
+7. Results are returned with metadata, similarity, selector score, BibTeX, and optional PDF paths.
+
+The web app also supports multi-level query generation. DeepSeek rewrites an input query into broad, moderate, and specific research queries, then the selected level is searched.
+
+## RAG Indexing and Retrieval
+
+Build or refresh the RAG index:
+
+```bash
+python rag/scripts/build_rag_index.py --force
+```
+
+Run a single retrieval query:
+
+```bash
+python rag/scripts/test_preretrieval.py "graph neural networks for traffic prediction" --mode hybrid --top-k 10
+```
+
+Supported retrieval modes:
+
+- `dense` - sentence-transformer embeddings with Milvus or in-memory vector search
+- `sparse` - in-memory BM25
+- `hybrid` - Reciprocal Rank Fusion over dense and sparse results
+
+## Evaluation
+
+The evaluation set is a JSONL file where each row contains a question and one or more gold paper IDs:
+
+```json
+{
+  "qid": "PaperQuery_0",
+  "question": "What convergence analyses exist for Oja's PCA and MCA learning algorithms?",
+  "answer": ["Convergence analysis of a deterministic discrete time system of Oja's PCA learning algorithm"],
+  "answer_paper_id": [883]
+}
+```
+
+Evaluate retrieval:
+
+```bash
+python rag/scripts/evaluate_retrieval.py --retrieval-mode all --candidate-k 50 --final-k 5
+```
+
+Evaluate retrieval plus selector reranking:
+
+```bash
+python rag/scripts/evaluate_retrieval.py --retrieval-mode hybrid --candidate-k 50 --final-k 5 --rerank
+```
+
+Outputs are written to `output/eval/`:
+
+- `*_summary.json`
+- `*_details.json`
+- `*_details.csv`
+- `*_metrics.csv`
+- `*_report_metrics.csv`
+
+Metrics include hit/retrieval quality at configured K values, final output metrics, mean latency, P50 latency, and P95 latency.
+
+## PDF Storage
+
+PASA supports two PDF storage modes:
+
+- Local mode: set `USE_COS_STORAGE=false`; uploaded PDFs are stored under `src/pdfs` by default.
+- Tencent COS mode: set `USE_COS_STORAGE=true` and configure COS credentials, region, bucket, and folder.
+
+PDF text is extracted with `PyPDF2` for paper chat and analysis features. COS files are downloaded into memory before extraction.
+
+## Notes and Limitations
+
+- Several source comments and older README text appear to have been saved with the wrong character encoding, but the runtime logic is still readable from function names and code structure.
+- The local selector model can require significant GPU memory. If you only need embedding search, set `SELECTOR_PATH` to an unavailable path or adapt the app to initialize `PaperSearch` without a selector.
+- `pymilvus` is optional but required for the Milvus backend.
+- `python.sts.sts` is imported by one COS STS helper path and may require Tencent's STS package if that endpoint is used.
+- The app initializes models at startup, so first launch can be slow.
+
+## License
+
+The selector wrapper in `coding/models.py` includes an Apache-2.0 header from ByteDance. Check the licenses of bundled model directories before redistribution or deployment.

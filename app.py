@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file, Response
 import json
-from paper_search import PaperSearch
 import os
 import logging
 import time
@@ -13,20 +12,62 @@ from bibtexparser.customization import convert_to_unicode
 from werkzeug.utils import secure_filename
 import uuid
 import requests
-from config import (
-    MODEL_PATH, SELECTOR_PATH, UPLOAD_FOLDER, ALLOWED_EXTENSIONS, 
+from jinja2 import TemplateNotFound
+from coding.paper_search import PaperSearch
+from config.config import (
+    MODEL_PATH, SELECTOR_PATH, DATABASE_PATH, TEMPLATES_DIR, STATIC_DIR,
+    UPLOAD_FOLDER, ALLOWED_EXTENSIONS,
     HOST, PORT, DEBUG, COS_SECRET_ID, COS_SECRET_KEY, COS_REGION, 
     COS_BUCKET_NAME, COS_FOLDER, USE_COS_STORAGE
 )
 import PyPDF2
 import io
-from cos_utils import COSUtils
+from coding.cos_utils import COSUtils
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def resolve_template_dir():
+    candidates = [
+        TEMPLATES_DIR,
+        os.path.join(BASE_DIR, 'src', 'templates'),
+        os.path.join(BASE_DIR, 'src', 'resources', 'templates'),
+        os.path.join(BASE_DIR, 'templates'),
+    ]
+    for path in candidates:
+        if path and os.path.exists(os.path.join(path, 'index.html')):
+            return path
+    return TEMPLATES_DIR
+
+
+def resolve_static_dir():
+    candidates = [
+        STATIC_DIR,
+        os.path.join(BASE_DIR, 'src', 'static'),
+        os.path.join(BASE_DIR, 'src', 'resources', 'static'),
+        os.path.join(BASE_DIR, 'static'),
+    ]
+    for path in candidates:
+        if path and os.path.isdir(path):
+            return path
+    return STATIC_DIR
+
+
+ACTIVE_TEMPLATES_DIR = resolve_template_dir()
+ACTIVE_STATIC_DIR = resolve_static_dir()
+logger.info("Template directory: %s", ACTIVE_TEMPLATES_DIR)
+logger.info("Static directory: %s", ACTIVE_STATIC_DIR)
+
+app = Flask(
+    __name__,
+    template_folder=ACTIVE_TEMPLATES_DIR,
+    static_folder=ACTIVE_STATIC_DIR,
+    static_url_path='/static'
+)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # 配置Flask应用，确保所有错误都返回JSON
@@ -34,6 +75,23 @@ app.config['PROPAGATE_EXCEPTIONS'] = True
 
 # PDF文件配置
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+def render_template_or_fallback(template_name, status_code, title, message):
+    try:
+        return render_template(template_name), status_code
+    except TemplateNotFound:
+        logger.error(
+            "Template %s not found in %s",
+            template_name,
+            app.template_folder,
+        )
+        return (
+            f'<h1>{status_code} - {title}</h1>'
+            f'<p>{message}</p>'
+            '<p>Missing template file. Check the configured template directory.</p>'
+            '<a href="/">Back to home</a>',
+            status_code,
+        )
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -61,9 +119,50 @@ else:
 
 
 def get_db():
-    conn = sqlite3.connect('papers.db')
+    conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def rows_to_dicts(rows):
+    papers = []
+    for row in rows:
+        paper = dict(row)
+        if 'submitted_by' not in paper:
+            paper['submitted_by'] = paper.get('submitter') or '未知'
+        return_status = paper.get('status')
+        if return_status is None or str(return_status).strip() == '':
+            paper['status'] = 'approved'
+        papers.append(paper)
+    return papers
+
+
+def get_status_counts(db):
+    try:
+        rows = db.execute(
+            'SELECT COALESCE(NULLIF(TRIM(status), ""), "unknown") AS status, COUNT(*) AS count '
+            'FROM papers GROUP BY COALESCE(NULLIF(TRIM(status), ""), "unknown")'
+        ).fetchall()
+        return {row['status']: row['count'] for row in rows}
+    except Exception as e:
+        logger.warning("Unable to read paper status counts: %s", e)
+        return {}
+
+
+def log_database_status():
+    exists = os.path.exists(DATABASE_PATH)
+    size = os.path.getsize(DATABASE_PATH) if exists else 0
+    logger.info("Database path: %s", DATABASE_PATH)
+    logger.info("Database exists: %s, size: %s bytes", exists, size)
+    if not exists:
+        return
+    try:
+        with get_db() as db:
+            paper_count = db.execute('SELECT COUNT(*) FROM papers').fetchone()[0]
+            logger.info("Papers table count: %s", paper_count)
+            logger.info("Papers status counts: %s", get_status_counts(db))
+    except Exception as e:
+        logger.warning("Unable to inspect database status: %s", e)
 
 def init_db():
     # 确保上传文件夹存在（本地存储备用）
@@ -92,10 +191,25 @@ def init_db():
         cursor = db.cursor()
         cursor.execute("PRAGMA table_info(papers)")
         columns = [column[1] for column in cursor.fetchall()]
-        
-        if 'pdf_file_path' not in columns:
-            db.execute('ALTER TABLE papers ADD COLUMN pdf_file_path TEXT')
-            db.commit()
+
+        migrations = {
+            'doi': 'ALTER TABLE papers ADD COLUMN doi TEXT',
+            'status': "ALTER TABLE papers ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'",
+            'submitter': 'ALTER TABLE papers ADD COLUMN submitter TEXT',
+            'review_comment': 'ALTER TABLE papers ADD COLUMN review_comment TEXT',
+            'reviewed_by': 'ALTER TABLE papers ADD COLUMN reviewed_by TEXT',
+            'submitted_at': 'ALTER TABLE papers ADD COLUMN submitted_at TIMESTAMP',
+            'reviewed_at': 'ALTER TABLE papers ADD COLUMN reviewed_at TIMESTAMP',
+            'pdf_file_path': 'ALTER TABLE papers ADD COLUMN pdf_file_path TEXT',
+        }
+        for column, statement in migrations.items():
+            if column not in columns:
+                logger.info("Adding missing papers.%s column", column)
+                db.execute(statement)
+
+        db.execute("UPDATE papers SET status='approved' WHERE status IS NULL OR TRIM(status)=''")
+        db.commit()
+    log_database_status()
             
 
 init_db()
@@ -241,30 +355,55 @@ def not_found(error):
 def internal_error(error):
     if request.path.startswith('/api/') or request.path.startswith('/get_pdf_url/') or request.path.startswith('/view_pdf/'):
         return jsonify({'error': '服务器内部错误'}), 500
-    return render_template('500.html'), 500
+    return render_template_or_fallback(
+        '500.html',
+        500,
+        'Internal Server Error',
+        'The server encountered an internal error.',
+    )
 
 @app.errorhandler(400)
 def bad_request(error):
     if request.path.startswith('/api/') or request.path.startswith('/get_pdf_url/') or request.path.startswith('/view_pdf/'):
         return jsonify({'error': '请求参数错误'}), 400
-    return render_template('400.html'), 400
+    return render_template_or_fallback(
+        '400.html',
+        400,
+        'Bad Request',
+        'The request could not be understood by the server.',
+    )
 
 @app.errorhandler(403)
 def forbidden(error):
     if request.path.startswith('/api/') or request.path.startswith('/get_pdf_url/') or request.path.startswith('/view_pdf/'):
         return jsonify({'error': '访问被拒绝'}), 403
-    return render_template('403.html'), 403
+    return render_template_or_fallback(
+        '403.html',
+        403,
+        'Forbidden',
+        'You do not have permission to access this page.',
+    )
 
 @app.errorhandler(Exception)
 def handle_exception(e):
     logger.error(f"未处理的异常: {str(e)}")
     if request.path.startswith('/api/') or request.path.startswith('/get_pdf_url/') or request.path.startswith('/view_pdf/'):
         return jsonify({'error': '服务器错误'}), 500
-    return render_template('error.html'), 500
+    return render_template_or_fallback(
+        'error.html',
+        500,
+        'Internal Server Error',
+        str(e),
+    )
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template_or_fallback(
+        'index.html',
+        500,
+        'Template Not Found',
+        'index.html was not found. Check that src/templates was deployed.',
+    )
 
 @socketio.on('connect')
 def handle_connect():
@@ -913,15 +1052,15 @@ def submit_paper():
 @app.route('/my_papers', methods=['GET'])
 def my_papers():
     uid = request.args.get('uid', '匿名')
-    db = get_db()
-    papers = db.execute('SELECT * FROM papers WHERE submitter=? ORDER BY submitted_at DESC', (uid,)).fetchall()
-    return jsonify([dict(row) for row in papers])
+    with get_db() as db:
+        papers = db.execute('SELECT * FROM papers WHERE submitter=? ORDER BY submitted_at DESC', (uid,)).fetchall()
+        return jsonify(rows_to_dicts(papers))
 
 @app.route('/admin/pending_papers')
 def admin_pending_papers():
-    db = get_db()
-    papers = db.execute('SELECT * FROM papers WHERE status=? ORDER BY submitted_at DESC', ('pending',)).fetchall()
-    return jsonify([dict(row) for row in papers])
+    with get_db() as db:
+        papers = db.execute('SELECT * FROM papers WHERE status=? ORDER BY submitted_at DESC', ('pending',)).fetchall()
+        return jsonify(rows_to_dicts(papers))
 
 @app.route('/admin/review_paper', methods=['POST'])
 def admin_review_paper():
@@ -940,9 +1079,47 @@ def admin_review_paper():
 
 @app.route('/admin/reviewed_papers')
 def admin_reviewed_papers():
-    db = get_db()
-    papers = db.execute("SELECT * FROM papers WHERE status IN ('approved', 'approve', 'rejected', 'reject') ORDER BY reviewed_at DESC").fetchall()
-    return jsonify([dict(row) for row in papers])
+    with get_db() as db:
+        papers = db.execute("""
+            SELECT * FROM papers
+            WHERE TRIM(LOWER(status)) IN ('approved', 'approve', 'rejected', 'reject')
+            ORDER BY reviewed_at DESC, id DESC
+        """).fetchall()
+        logger.info(
+            "Reviewed papers requested: returned=%s, status_counts=%s",
+            len(papers),
+            get_status_counts(db),
+        )
+        return jsonify(rows_to_dicts(papers))
+
+
+@app.route('/admin/db_status')
+def admin_db_status():
+    try:
+        exists = os.path.exists(DATABASE_PATH)
+        payload = {
+            'database_path': DATABASE_PATH,
+            'exists': exists,
+            'size_bytes': os.path.getsize(DATABASE_PATH) if exists else 0,
+            'papers_count': 0,
+            'status_counts': {},
+            'tables': [],
+        }
+        if exists:
+            with get_db() as db:
+                payload['tables'] = [
+                    row['name']
+                    for row in db.execute(
+                        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+                    ).fetchall()
+                ]
+                if 'papers' in payload['tables']:
+                    payload['papers_count'] = db.execute('SELECT COUNT(*) FROM papers').fetchone()[0]
+                    payload['status_counts'] = get_status_counts(db)
+        return jsonify(payload)
+    except Exception as e:
+        logger.error("Database status check failed: %s", e)
+        return jsonify({'error': str(e), 'database_path': DATABASE_PATH}), 500
 
 @app.route('/admin/delete_paper', methods=['POST'])
 def admin_delete_paper():
