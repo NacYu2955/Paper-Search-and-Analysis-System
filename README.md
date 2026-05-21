@@ -1,4 +1,4 @@
-#Paper Search and Analysis System
+# Paper Search and Analysis System
 
 The system is a Flask-based academic paper search system for a closed paper corpus. It combines sentence-embedding retrieval, an optional PASA/Qwen selector reranker, DeepSeek-powered query rewriting and analysis, PDF management, and a separate RAG evaluation pipeline for dense, sparse, and hybrid retrieval experiments.
 
