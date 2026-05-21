@@ -1,6 +1,6 @@
-# PASA: Paper Search and Analysis System
+# Paper Search and Analysis System
 
-PASA is a Flask-based academic paper search system for a closed paper corpus. It combines sentence-embedding retrieval, an optional PASA/Qwen selector reranker, DeepSeek-powered query rewriting and analysis, PDF management, and a separate RAG evaluation pipeline for dense, sparse, and hybrid retrieval experiments.
+The systemis a Flask-based academic paper search system for a closed paper corpus. It combines sentence-embedding retrieval, an optional PASA/Qwen selector reranker, DeepSeek-powered query rewriting and analysis, PDF management, and a separate RAG evaluation pipeline for dense, sparse, and hybrid retrieval experiments.
 
 The web application is designed for interactive paper discovery: users can search in natural language, receive real-time results through Socket.IO, inspect paper metadata, generate BibTeX, upload and review papers, view PDFs, and ask citation-oriented questions about selected papers.
 
