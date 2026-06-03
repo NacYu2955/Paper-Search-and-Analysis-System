@@ -1,0 +1,51 @@
+qid,candidate_hit,candidate_recall,candidate_first_hit_rank,final_hit,final_recall,final_first_hit_rank,latency_seconds,answer_paper_id,candidate_matched_ids,final_matched_ids,question
+PaperQuery_0,True,1.0,1,True,1.0,1,0.0013030000000000541,883 886,883 886,883 886,What convergence analyses exist for Oja's PCA and MCA learning algorithms?
+PaperQuery_1,True,1.0,1,True,1.0,1,0.0014386000000001786,884,884,884,Is there a fuzzy SVM approach that incorporates a new fuzzy membership function defined in the feature space using kernels?
+PaperQuery_2,True,1.0,1,True,1.0,1,0.0011378000000004107,885,885,885,What analysis has been done on the output convergence of delayed recurrent neural networks with time-varying inputs?
+PaperQuery_3,True,1.0,1,True,1.0,1,0.0010244000000003695,887,887,887,How can one determine the number of principal directions in a biologically plausible PCA model?
+PaperQuery_4,True,1.0,5,True,0.5,5,0.0016313999999999496,888 892,888 892,892,"I'm looking for papers that study the stability and convergence properties of neural network algorithms for principal component analysis or minor component analysis, including chaotic behavior."
+PaperQuery_5,True,1.0,1,True,1.0,1,0.00115360000000031,889,889,889,Can you point me to research on fuzzy learning algorithms for robust principal component analysis in neural networks?
+PaperQuery_6,True,1.0,1,True,1.0,1,0.0008499000000004031,890,890,890,I need information on self-organizing maps that perform hierarchical principal components analysis with a growing architecture.
+PaperQuery_7,True,1.0,1,True,1.0,1,0.0010317000000004128,891,891,891,What work has been done on the convergence analysis of Hyvärinen-Oja's ICA learning algorithms with constant learning rates?
+PaperQuery_8,True,1.0,4,True,1.0,4,0.0004157000000004629,893,893,893,What algorithm ensures global convergence for PCA neural networks?
+PaperQuery_9,True,1.0,1,True,1.0,1,0.0007715999999993173,894,894,894,Which backpropagation algorithm uses an absolute error function to improve robustness and avoid local minima?
+PaperQuery_10,True,1.0,1,True,1.0,1,0.0013880999999997812,895 896,895 896,895 896,Which papers analyze the chaotic dynamical behavior in learning algorithms for ICA and MCA neural networks with constant learning rates?
+PaperQuery_11,True,1.0,1,True,1.0,1,0.0009038000000005653,897,897,897,How can multiple minor directions be extracted in parallel using a PCA neural network?
+PaperQuery_12,True,1.0,2,True,1.0,2,0.0013607000000002145,898 901,898 901,898 901,"What are the convergence results for PCA learning algorithms that utilize a constant learning rate, particularly those analyzed through the deterministic discrete time method?"
+PaperQuery_13,True,1.0,1,True,1.0,1,0.0012627999999992312,899,899,899,How can the working set selection be improved in SMO-type decomposition methods to reduce learning time for support vector machines?
+PaperQuery_14,True,1.0,6,False,0.0,,0.001286400000000576,900,900,,What does the deterministic discrete time analysis reveal about the stability and chaotic behavior of Independent Component Analysis (ICA) learning algorithms?
+PaperQuery_15,True,1.0,1,True,1.0,1,0.0012745000000000672,902,902,902,"How can the Generalized Hebbian Algorithm achieve global convergence when using nonzero-approaching adaptive learning rates, as opposed to rates converging to zero?"
+PaperQuery_16,True,1.0,1,True,1.0,1,0.0006159000000005577,903,903,903,What methods extract web news page content by combining DOM tree parsing and decision trees?
+PaperQuery_17,True,1.0,1,True,1.0,1,0.0008759999999998769,904,904,904,Are there manifold alignment techniques that use sparse local structures to obtain more corresponding pairs?
+PaperQuery_18,True,1.0,1,True,1.0,1,0.0008148999999999518,906,906,906,I need a sparse variant of affinity propagation tailored for image analysis tasks.
+PaperQuery_19,True,1.0,1,True,1.0,1,0.0010833999999997346,907,907,907,Can you find a robust classifier that relies on distance-based representation and square weights instead of sparse representation?
+PaperQuery_20,True,1.0,1,True,1.0,1,0.0007938000000002887,908,908,908,How is non-divergence guaranteed in stochastic discrete time algorithms for principal component analysis neural networks?
+PaperQuery_21,True,1.0,1,True,1.0,1,0.0007169000000004644,910,910,910,What adaptive learning rate strategy ensures global convergence of Oja's PCA learning algorithm without approaching zero?
+PaperQuery_22,True,1.0,1,True,1.0,1,0.0011893000000000598,911,911,911,How is the convergence of Xu's LMSER learning algorithm analyzed using a deterministic discrete time system approach?
+PaperQuery_23,True,1.0,1,True,1.0,1,0.000824299999999667,912,912,912,In what way are PCA neural networks utilized for rigid medical image registration?
+PaperQuery_24,True,1.0,1,True,1.0,1,0.001048299999999891,913,913,913,I need a stable neural network algorithm for minor component analysis (MCA) to extract minor components online with low computational complexity.
+PaperQuery_25,True,1.0,1,True,1.0,1,0.0008293999999997581,914,914,914,How can I learn representations that preserve the intrinsic manifold structure by ensuring non-negative components during local neighborhood selection?
+PaperQuery_26,True,1.0,1,True,1.0,1,0.0014463000000004556,915,915,915,Is there an automatic clustering algorithm that uses a competition model of probabilistic PCA to determine the number of clusters without user input?
+PaperQuery_27,True,1.0,1,True,1.0,1,0.001441400000000037,916,916,916,I'm looking for an improved angle-based outlier detection method that considers the relationships among neighbors to achieve more stable outlier rankings in high-dimensional data.
+PaperQuery_28,True,1.0,1,True,1.0,1,0.0008187000000008382,918 920,918 920,918 920,What are some representation learning approaches for selecting neighbors or estimating intrinsic dimension on manifolds?
+PaperQuery_29,True,1.0,1,True,1.0,1,0.0012402999999991948,919,919,919,Is there an online manifold learning method that uses an improved topology representing network combined with a radial basis function network?
+PaperQuery_30,True,1.0,1,True,1.0,1,0.0003828999999999638,921,921,921,What surgical simulation system predicts changes in facial soft tissue after cranio-maxillofacial surgery?
+PaperQuery_31,True,1.0,1,True,1.0,1,0.0010547000000009632,922,922,922,How should one choose the initial weights and biases for restricted Boltzmann machine pre-training to improve the learning outcome?
+PaperQuery_32,True,1.0,1,True,1.0,1,0.0004753999999991265,923,923,923,What automatic registration algorithm is developed for 3D maxillofacial models?
+PaperQuery_33,True,1.0,1,True,1.0,1,0.0008265000000005074,924,924,924,How can pulse-coupled neural networks be used to compute shortest paths with restricted autowave?
+PaperQuery_34,True,1.0,1,True,1.0,1,0.0011092999999995357,925,925,925,Is there a novel method for online action segmentation and classification from continuous body poses?
+PaperQuery_35,True,1.0,1,True,1.0,1,0.0004097999999999047,926,926,926,Who were the 2015 IEEE Executive Staff?
+PaperQuery_36,True,1.0,1,True,1.0,1,0.0011546999999989538,928,928,928,Is there a classification model that uses a restricted Boltzmann machine and focuses on reconstruction error?
+PaperQuery_37,True,1.0,1,True,1.0,1,0.0007388999999999868,929,929,929,How can representation-based methods be used for detecting boundary points and outliers efficiently?
+PaperQuery_38,True,1.0,1,True,1.0,1,0.0007463000000011988,931,931,931,What method uses angle and density to detect key points like outliers and cluster centers?
+PaperQuery_39,True,1.0,1,True,1.0,1,0.001049399999999423,932,932,932,How can a neural network model based on Deep Belief Networks be used to encode words?
+PaperQuery_40,True,1.0,1,True,1.0,1,0.0006643000000003951,933,933,933,Can you provide me with papers on horizontal 2D fully dispersive nonlinear mild slope equations for wave modeling?
+PaperQuery_41,True,1.0,1,True,1.0,1,0.0007413000000013881,934,934,934,I'm looking for a semi-supervised algorithm that aligns manifolds while preserving local structures. Any recent work?
+PaperQuery_42,True,1.0,1,True,1.0,1,0.0009113000000002813,935,935,935,Is there a web-based tool that can automatically generate abstract paintings from images?
+PaperQuery_43,True,1.0,1,True,1.0,1,0.0008324000000001774,937,937,937,"What is the latest in ion sensing using fiber Bragg gratings? Specifically, I've heard about black phosphorus coatings for ultrasensitive detection."
+PaperQuery_44,True,1.0,1,True,0.5,1,0.0008009000000015476,938 941,938 941,941,What are some recent methods in manifold learning that address unsupervised clustering or embedding quality assessment?
+PaperQuery_45,True,1.0,1,True,1.0,1,0.000626699999999758,939,939,939,How can restricted Boltzmann machines be regularized using graph information?
+PaperQuery_46,True,1.0,1,True,1.0,1,0.0010788999999995497,940,940,940,What approach uses computer technology to generate abstract paintings based on color composition?
+PaperQuery_47,True,1.0,1,True,1.0,1,0.0008198000000003702,942,942,942,Is hippocampal T2 mapping correlated with neuropsychological test results in Alzheimer's disease?
+PaperQuery_48,True,1.0,1,True,1.0,1,0.0007137000000003724,943,943,943,What approaches use local geometrical measures to automatically detect boundary points in datasets?
+PaperQuery_49,True,1.0,1,True,1.0,1,0.000794400000000195,945,945,945,How can a tree-factored conditional restricted Boltzmann machine be used for modeling mixed motion styles?

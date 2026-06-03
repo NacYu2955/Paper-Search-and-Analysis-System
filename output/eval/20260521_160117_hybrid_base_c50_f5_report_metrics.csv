@@ -1,0 +1,3 @@
+run_name,testset,queries,corpus_papers,retrieval_mode,retrieval_backend,embedding_model,candidate_k,final_k,rerank,stage,Recall@5,Recall@10,MRR,nDCG@10,Hit Rate@10,Latency
+20260521_160117_hybrid_base_c50_f5,F:\DeepLearning\pasa\dataset\testset.jsonl,50,446,hybrid,hybrid_rrf(in_memory+bm25),F:\DeepLearning\pasa\model\all-MiniLM-L6-v2,50,5,False,candidate,0.97,1.0,0.9478571428571427,0.9608420655651,1.0,0.006784315999999997
+20260521_160117_hybrid_base_c50_f5,F:\DeepLearning\pasa\dataset\testset.jsonl,50,446,hybrid,hybrid_rrf(in_memory+bm25),F:\DeepLearning\pasa\model\all-MiniLM-L6-v2,50,5,False,final,0.97,,,,,0.006784315999999997

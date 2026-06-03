@@ -16,7 +16,6 @@ __pycache__/
 .idea/
 
 # Runtime data and generated outputs
-output/
 pdfs/
 src/pdfs/
 src/resources/

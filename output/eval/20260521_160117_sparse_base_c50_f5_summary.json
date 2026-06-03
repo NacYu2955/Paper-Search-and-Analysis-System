@@ -1,0 +1,100 @@
+{
+  "run_name": "20260521_160117_sparse_base_c50_f5",
+  "testset": "F:\\DeepLearning\\pasa\\dataset\\testset.jsonl",
+  "queries": 50,
+  "corpus_papers": 446,
+  "retrieval_mode": "sparse",
+  "retrieval_backend": "bm25",
+  "embedding_model": "F:\\DeepLearning\\pasa\\model\\all-MiniLM-L6-v2",
+  "candidate_k": 50,
+  "final_k": 5,
+  "rrf_k": null,
+  "rerank": false,
+  "score_threshold": null,
+  "mean_latency_seconds": 0.0009580900000001336,
+  "p50_latency_seconds": 0.0008759999999998769,
+  "p95_latency_seconds": 0.001441400000000037,
+  "candidate_metrics": {
+    "1": {
+      "hit": 0.92,
+      "recall": 0.88,
+      "all_gt": 0.84,
+      "mrr": 0.92,
+      "ndcg": 0.92
+    },
+    "3": {
+      "hit": 0.94,
+      "recall": 0.92,
+      "all_gt": 0.9,
+      "mrr": 0.93,
+      "ndcg": 0.9183944157829638
+    },
+    "5": {
+      "hit": 0.98,
+      "recall": 0.96,
+      "all_gt": 0.94,
+      "mrr": 0.9390000000000001,
+      "ndcg": 0.9370332636512694
+    },
+    "10": {
+      "hit": 1.0,
+      "recall": 1.0,
+      "all_gt": 1.0,
+      "mrr": 0.9423333333333334,
+      "ndcg": 0.9526132040815628
+    },
+    "20": {
+      "hit": 1.0,
+      "recall": 1.0,
+      "all_gt": 1.0,
+      "mrr": 0.9423333333333334,
+      "ndcg": 0.9526132040815628
+    },
+    "50": {
+      "hit": 1.0,
+      "recall": 1.0,
+      "all_gt": 1.0,
+      "mrr": 0.9423333333333334,
+      "ndcg": 0.9526132040815628
+    }
+  },
+  "final_metrics": {
+    "1": {
+      "hit": 0.92,
+      "recall": 0.88,
+      "all_gt": 0.84,
+      "mrr": 0.92,
+      "ndcg": 0.92
+    },
+    "3": {
+      "hit": 0.94,
+      "recall": 0.92,
+      "all_gt": 0.9,
+      "mrr": 0.93,
+      "ndcg": 0.9183944157829638
+    },
+    "5": {
+      "hit": 0.98,
+      "recall": 0.96,
+      "all_gt": 0.94,
+      "mrr": 0.9390000000000001,
+      "ndcg": 0.9370332636512694
+    }
+  },
+  "candidate_report_metrics": {
+    "Recall@5": 0.96,
+    "Recall@10": 1.0,
+    "MRR": 0.9423333333333334,
+    "nDCG@10": 0.9526132040815628,
+    "Hit Rate@10": 1.0,
+    "Latency": 0.0009580900000001336
+  },
+  "final_report_metrics": {
+    "Recall@5": 0.96,
+    "Recall@10": null,
+    "MRR": null,
+    "nDCG@10": null,
+    "Hit Rate@10": null,
+    "Latency": 0.0009580900000001336
+  }
+}
