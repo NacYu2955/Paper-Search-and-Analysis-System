@@ -1,13 +1,13 @@
 # Paper Search and Analysis System
 
-The systemis a Flask-based academic paper search system for a closed paper corpus. It combines sentence-embedding retrieval, an optional PASA/Qwen selector reranker, DeepSeek-powered query rewriting and analysis, PDF management, and a separate RAG evaluation pipeline for dense, sparse, and hybrid retrieval experiments.
+The system is a Flask-based academic paper search system for a closed paper corpus. It combines sentence-embedding retrieval, an optional PASA/Qwen selector reranker, DeepSeek-powered query rewriting and analysis, PDF management, and a separate RAG evaluation pipeline for dense, sparse, and hybrid retrieval experiments.
 
 The web application is designed for interactive paper discovery: users can search in natural language, receive real-time results through Socket.IO, inspect paper metadata, generate BibTeX, upload and review papers, view PDFs, and ask citation-oriented questions about selected papers.
 
 ## Features
 
 - Semantic paper search with `all-MiniLM-L6-v2` embeddings.
-- Optional local selector reranking with `model/pasa-7b-selector`.
+- Optional local selector reranking with `model/selector`.
 - Real-time search result streaming through Flask-SocketIO.
 - Chinese query translation and English spelling correction before retrieval.
 - DeepSeek API integration for query rewriting, paper analysis, citation suggestions, and paper chat.
@@ -83,7 +83,7 @@ export DEEPSEEK_API_KEY="your-deepseek-api-key"
 
 # Model paths
 export MODEL_PATH="model/all-MiniLM-L6-v2"
-export SELECTOR_PATH="model/pasa-7b-selector"
+export SELECTOR_PATH="model/selector"
 
 # Data paths
 export DATABASE_PATH="src/papers.db"

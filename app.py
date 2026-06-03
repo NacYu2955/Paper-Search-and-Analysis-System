@@ -12,13 +12,15 @@ from bibtexparser.customization import convert_to_unicode
 from werkzeug.utils import secure_filename
 import uuid
 import requests
+from urllib.parse import quote
 from jinja2 import TemplateNotFound
 from coding.paper_search import PaperSearch
 from config.config import (
     MODEL_PATH, SELECTOR_PATH, DATABASE_PATH, TEMPLATES_DIR, STATIC_DIR,
     UPLOAD_FOLDER, ALLOWED_EXTENSIONS,
     HOST, PORT, DEBUG, COS_SECRET_ID, COS_SECRET_KEY, COS_REGION, 
-    COS_BUCKET_NAME, COS_FOLDER, USE_COS_STORAGE
+    COS_BUCKET_NAME, COS_FOLDER, USE_COS_STORAGE, DEEPSEEK_MODEL,
+    PDF_CONTEXT_MAX_CHARS
 )
 import PyPDF2
 import io
@@ -96,6 +98,148 @@ def render_template_or_fallback(template_name, status_code, title, message):
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def get_pdf_filename(pdf_file_path):
+    if not pdf_file_path:
+        return None
+    filename = os.path.basename(str(pdf_file_path).replace('\\', '/'))
+    if not filename or not allowed_file(filename):
+        return None
+    return secure_filename(filename)
+
+
+def get_pdf_search_dirs():
+    dirs = [
+        UPLOAD_FOLDER,
+        os.path.join(BASE_DIR, 'pdfs'),
+    ]
+    unique_dirs = []
+    for folder in dirs:
+        abs_folder = os.path.abspath(folder)
+        if abs_folder not in unique_dirs:
+            unique_dirs.append(abs_folder)
+    return unique_dirs
+
+
+def get_existing_local_pdf_path(pdf_file_path):
+    filename = get_pdf_filename(pdf_file_path)
+    if not filename:
+        return None
+
+    for folder in get_pdf_search_dirs():
+        candidate = os.path.abspath(os.path.join(folder, filename))
+        if os.path.commonpath([folder, candidate]) == folder and os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def get_primary_local_pdf_path(pdf_file_path):
+    filename = get_pdf_filename(pdf_file_path)
+    if not filename:
+        return None
+    return os.path.abspath(os.path.join(UPLOAD_FOLDER, filename))
+
+
+def get_paper_pdf_record(paper_id):
+    paper_id = str(paper_id or '').strip()
+    if not paper_id:
+        return None
+
+    direct_filename = get_pdf_filename(paper_id)
+    if direct_filename:
+        direct_local_path = get_existing_local_pdf_path(direct_filename)
+        if direct_local_path:
+            return {
+                'id': direct_filename,
+                'pdf_file_path': direct_filename,
+                'local_pdf_path': direct_local_path,
+                'has_stored_pdf_path': False,
+            }
+
+    with get_db() as db:
+        result = db.execute(
+            "SELECT id, title, doi, pdf_file_path FROM papers WHERE CAST(id AS TEXT) = ?",
+            (paper_id,),
+        ).fetchone()
+
+    if not result:
+        return None
+
+    stored_pdf_path = result['pdf_file_path']
+    pdf_candidates = []
+    if stored_pdf_path:
+        pdf_candidates.append(str(stored_pdf_path))
+        if not str(stored_pdf_path).lower().endswith('.pdf'):
+            pdf_candidates.append(f"{stored_pdf_path}.pdf")
+    pdf_candidates.append(f"{paper_id}.pdf")
+
+    filename = None
+    local_pdf_path = None
+    for candidate_path in pdf_candidates:
+        candidate_filename = get_pdf_filename(candidate_path)
+        if not candidate_filename:
+            continue
+        candidate_local_path = get_existing_local_pdf_path(candidate_filename)
+        if candidate_local_path:
+            filename = candidate_filename
+            local_pdf_path = candidate_local_path
+            break
+        if filename is None:
+            filename = candidate_filename
+
+    if not local_pdf_path:
+        duplicate_pdf_paths = []
+        with get_db() as db:
+            if result['doi']:
+                duplicate_pdf_paths.extend(db.execute(
+                    "SELECT pdf_file_path FROM papers "
+                    "WHERE id != ? AND pdf_file_path IS NOT NULL AND TRIM(pdf_file_path) != '' "
+                    "AND LOWER(TRIM(doi)) = LOWER(TRIM(?))",
+                    (result['id'], result['doi']),
+                ).fetchall())
+            duplicate_pdf_paths.extend(db.execute(
+                "SELECT pdf_file_path FROM papers "
+                "WHERE id != ? AND pdf_file_path IS NOT NULL AND TRIM(pdf_file_path) != '' "
+                "AND LOWER(TRIM(title)) = LOWER(TRIM(?))",
+                (result['id'], result['title']),
+            ).fetchall())
+
+        for duplicate in duplicate_pdf_paths:
+            duplicate_filename = get_pdf_filename(duplicate['pdf_file_path'])
+            if not duplicate_filename:
+                continue
+            duplicate_local_path = get_existing_local_pdf_path(duplicate_filename)
+            if duplicate_local_path:
+                filename = duplicate_filename
+                local_pdf_path = duplicate_local_path
+                break
+
+    if not filename:
+        return {
+            'id': str(result['id']),
+            'pdf_file_path': None,
+            'local_pdf_path': None,
+            'has_stored_pdf_path': bool(stored_pdf_path),
+        }
+
+    return {
+        'id': str(result['id']),
+        'pdf_file_path': filename,
+        'local_pdf_path': local_pdf_path,
+        'has_stored_pdf_path': bool(stored_pdf_path),
+    }
+
+
+def get_cos_pdf_url(pdf_file_path, inline=True):
+    filename = get_pdf_filename(pdf_file_path)
+    if not filename or not USE_COS_STORAGE or not cos_client:
+        return None
+
+    cos_key = f"{COS_FOLDER}/{filename}"
+    if not cos_client.file_exists(cos_key):
+        return None
+    return cos_client.get_file_url(cos_key, expires=3600, inline=inline)
 
 # 初始化PaperSearch
 # 全局变量存储PaperSearch实例
@@ -260,8 +404,8 @@ def extract_pdf_text(pdf_path_or_cos_key, is_cos_key=False):
             # 移除多余的空白字符
             text_content = ' '.join(text_content.split())
             # 限制文本长度，避免token过多
-            if len(text_content) > 8000:  # 大约2000-3000个token
-                text_content = text_content[:8000] + "..."
+            if len(text_content) > PDF_CONTEXT_MAX_CHARS:
+                text_content = text_content[:PDF_CONTEXT_MAX_CHARS] + "\n\n[PDF text truncated]"
         
         logger.info(f"成功提取PDF文本，长度: {len(text_content)} 字符")
         return text_content
@@ -273,6 +417,19 @@ def extract_pdf_text(pdf_path_or_cos_key, is_cos_key=False):
 def get_paper_pdf_content(paper_id):
     """获取论文的PDF内容（优先使用本地文件）"""
     try:
+        paper_pdf = get_paper_pdf_record(paper_id)
+        if not paper_pdf or not paper_pdf['pdf_file_path']:
+            logger.info("Paper %s has no PDF file path", paper_id)
+            return None
+        if paper_pdf['local_pdf_path']:
+            return extract_pdf_text(paper_pdf['local_pdf_path'], is_cos_key=False)
+        logger.info(
+            "Local PDF not found for paper %s; checked filename %s",
+            paper_id,
+            paper_pdf['pdf_file_path'],
+        )
+        return None
+
         db = get_db()
         cursor = db.cursor()
         cursor.execute("SELECT pdf_file_path FROM papers WHERE id = ?", (paper_id,))
@@ -284,10 +441,10 @@ def get_paper_pdf_content(paper_id):
             return None
         
         # 优先检查本地文件
-        local_pdf_path = os.path.join(UPLOAD_FOLDER, result['pdf_file_path'])
-        logger.info(f"检查本地PDF文件: {local_pdf_path}")
+        local_pdf_path = get_existing_local_pdf_path(result['pdf_file_path'])
+        logger.info(f"检查本地PDF文件: {local_pdf_path or result['pdf_file_path']}")
         
-        if os.path.exists(local_pdf_path):
+        if local_pdf_path:
             # 从本地文件读取
             logger.info(f"从本地文件读取PDF内容: {local_pdf_path}")
             return extract_pdf_text(local_pdf_path, is_cos_key=False)
@@ -306,6 +463,62 @@ def get_paper_pdf_content(paper_id):
     except Exception as e:
         logger.error(f"获取论文PDF内容失败: {str(e)}")
         return None
+
+def format_paper_context(paper, pdf_content=None):
+    authors = paper.get('authors') or paper.get('author') or ['未知']
+    if isinstance(authors, list):
+        authors_text = ', '.join(str(author) for author in authors)
+    else:
+        authors_text = str(authors)
+
+    context = f"""论文信息：
+标题：{paper.get('title', '未知')}
+作者：{authors_text}
+年份：{paper.get('year', '未知')}
+摘要：{paper.get('abstract', '无摘要')}""".strip()
+
+    if pdf_content:
+        context += f"""
+
+对应 PDF 正文文本（由本地 PDF 文件提取）：
+{pdf_content}"""
+
+    return context
+
+
+def build_citation_messages(query, paper, message=None, conversation_history=None):
+    pdf_content = None
+    if paper.get('id'):
+        pdf_content = get_paper_pdf_content(paper['id'])
+        logger.info(
+            "Paper %s PDF content for citation analysis: %s",
+            paper['id'],
+            'loaded' if pdf_content else 'missing',
+        )
+
+    paper_context = format_paper_context(paper, pdf_content)
+    system_prompt = f"""你是专业的学术引用分析助手。请基于论文元数据和可用的本地 PDF 正文文本回答。
+
+当前新论文/检索需求：
+{query}
+
+待引用论文：
+{paper_context}
+
+回答要求：
+1. 优先依据 PDF 正文文本；如果没有 PDF 正文，则明确基于标题、摘要和元数据判断。
+2. 用中文回答，结论具体、可操作。
+3. 说明这篇论文讲了什么、为什么值得或不值得引用、适合放在新论文的哪个位置。"""
+
+    messages = [{"role": "system", "content": system_prompt}]
+    for msg in (conversation_history or [])[-6:]:
+        if msg.get('role') in ['user', 'assistant'] and msg.get('content'):
+            messages.append({"role": msg['role'], "content": msg['content']})
+    if message:
+        messages.append({"role": "user", "content": message})
+
+    return messages, pdf_content
+
 
 def init_searcher(max_retries=3):
     """初始化搜索器，支持重试机制"""
@@ -519,10 +732,22 @@ def analyze_paper():
                 return jsonify({'error': '搜索器初始化失败，请稍后重试'}), 500
         
         # 分析论文
-        analysis_result = searcher.analyze_paper(query, paper)
+        messages, pdf_content = build_citation_messages(
+            query,
+            paper,
+            message="请分析这篇论文与当前检索/写作需求的引用关系，说明论文主要内容、相关性、可引用点和具体引用建议。",
+        )
+        response = searcher.deepseek_client.chat.completions.create(
+            model=DEEPSEEK_MODEL,
+            messages=messages,
+            stream=False,
+            temperature=0.4,
+        )
         return jsonify({
             'success': True,
-            'citation_analysis': analysis_result['citation_analysis']
+            'citation_analysis': response.choices[0].message.content,
+            'has_pdf_content': pdf_content is not None,
+            'model': DEEPSEEK_MODEL,
         })
     except Exception as e:
         logger.error(f"论文分析出错: {str(e)}")
@@ -1338,10 +1563,19 @@ def upload_pdf():
         logger.error(f"PDF上传失败: {str(e)}")
         return jsonify({'error': f'上传失败: {str(e)}'}), 500
 
-@app.route('/view_pdf/<int:paper_id>')
+@app.route('/view_pdf/<paper_id>')
 def view_pdf(paper_id):
     """查看PDF文件（从本地pdfs文件夹）"""
     try:
+        paper_pdf = get_paper_pdf_record(paper_id)
+        if not paper_pdf:
+            return jsonify({'error': 'Paper not found'}), 404
+        if not paper_pdf['pdf_file_path']:
+            return jsonify({'error': 'Invalid PDF file path'}), 400
+        if paper_pdf['local_pdf_path']:
+            return send_file(paper_pdf['local_pdf_path'], mimetype='application/pdf')
+        return jsonify({'error': 'PDF file not found'}), 404
+
         logger.info(f"尝试查看PDF，论文ID: {paper_id}")
         
         db = get_db()
@@ -1412,10 +1646,25 @@ def view_pdf(paper_id):
         logger.error(f"查看PDF失败: {str(e)}")
         return jsonify({'error': f'查看失败: {str(e)}'}), 500
 
-@app.route('/get_pdf_info/<int:paper_id>')
+@app.route('/get_pdf_info/<paper_id>')
 def get_pdf_info(paper_id):
     """获取PDF文件信息（优先检查本地文件）"""
     try:
+        paper_pdf = get_paper_pdf_record(paper_id)
+        if not paper_pdf:
+            return jsonify({'error': 'Paper not found'}), 404
+        if not paper_pdf['pdf_file_path']:
+            return jsonify({'has_pdf': False, 'error': 'Invalid PDF file path'})
+        if paper_pdf['local_pdf_path']:
+            return jsonify({
+                'has_pdf': True,
+                'storage_type': 'local',
+                'file_path': paper_pdf['pdf_file_path'],
+                'file_size': os.path.getsize(paper_pdf['local_pdf_path']),
+                'content_type': 'application/pdf',
+            })
+        return jsonify({'has_pdf': False, 'error': 'Local PDF file not found'})
+
         logger.info(f"获取PDF信息，论文ID: {paper_id}")
         
         db = get_db()
@@ -1546,7 +1795,7 @@ def paper_chat():
         # 调用DeepSeek API
         try:
             response = searcher.deepseek_client.chat.completions.create(
-                model="deepseek-chat",
+                model=DEEPSEEK_MODEL,
                 messages=messages,
                 stream=False,
                 max_tokens=800,  # 减少token数量
@@ -1634,7 +1883,7 @@ def citation_chat():
         # 调用 DeepSeek
         try:
             response = searcher.deepseek_client.chat.completions.create(
-                model="deepseek-chat",
+                model=DEEPSEEK_MODEL,
                 messages=messages,
                 stream=False,
                 temperature=0.5
@@ -1716,7 +1965,7 @@ def citation_chat_stream():
             try:
                 # 调用 DeepSeek 流式API
                 response = searcher.deepseek_client.chat.completions.create(
-                    model="deepseek-chat",
+                    model=DEEPSEEK_MODEL,
                     messages=messages,
                     stream=True,
                     temperature=0.5
@@ -1732,7 +1981,7 @@ def citation_chat_stream():
                 logger.error(f"DeepSeek API调用失败: {str(e)}")
                 yield f"data: {json.dumps({'error': f'抱歉，我暂时无法回答您的问题。错误信息：{str(e)}'})}\n\n"
 
-        return Response(generate(), mimetype='text/plain')
+        return Response(generate(), mimetype='text/event-stream')
         
     except Exception as e:
         logger.error(f"引用分析对话处理失败: {str(e)}")
@@ -1968,10 +2217,26 @@ def get_realtime_results(session_id):
         logger.error(f"获取实时结果失败: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/get_pdf_url/<int:paper_id>')
+@app.route('/get_pdf_url/<paper_id>')
 def get_pdf_url(paper_id):
     """获取PDF文件的直接访问URL（优先使用本地文件）"""
     try:
+        paper_pdf = get_paper_pdf_record(paper_id)
+        if not paper_pdf:
+            return jsonify({'error': 'Paper not found'}), 404
+        if not paper_pdf['pdf_file_path']:
+            return jsonify({'error': 'Invalid PDF file path'}), 400
+        if paper_pdf['local_pdf_path']:
+            local_url = f"/view_pdf/{quote(paper_pdf['id'], safe='')}"
+            return jsonify({
+                'success': True,
+                'url': local_url,
+                'storage_type': 'local',
+                'expires_in': None,
+                'preview_mode': 'inline',
+            })
+        return jsonify({'error': 'Local PDF file not found'}), 404
+
         logger.info(f"获取PDF URL，论文ID: {paper_id}")
         
         # 验证paper_id参数
@@ -2046,10 +2311,24 @@ def get_pdf_url(paper_id):
         logger.error(f"获取PDF URL失败: {str(e)}")
         return jsonify({'error': f'获取URL失败: {str(e)}'}), 500
 
-@app.route('/download_pdf/<int:paper_id>')
+@app.route('/download_pdf/<paper_id>')
 def download_pdf(paper_id):
     """下载PDF文件（优先使用本地文件）"""
     try:
+        paper_pdf = get_paper_pdf_record(paper_id)
+        if not paper_pdf:
+            return jsonify({'error': 'Paper not found'}), 404
+        if not paper_pdf['pdf_file_path']:
+            return jsonify({'error': 'Invalid PDF file path'}), 400
+        if paper_pdf['local_pdf_path']:
+            return send_file(
+                paper_pdf['local_pdf_path'],
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=f"paper_{secure_filename(paper_pdf['id'])}.pdf",
+            )
+        return jsonify({'error': 'Local PDF file not found'}), 404
+
         logger.info(f"尝试下载PDF，论文ID: {paper_id}")
         
         db = get_db()

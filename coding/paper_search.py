@@ -16,6 +16,7 @@ from config.config import (
     DATABASE_PATH,
     DEEPSEEK_API_KEY,
     DEEPSEEK_BASE_URL,
+    DEEPSEEK_MODEL,
     DICTIONARY_PATH,
 )
 
@@ -137,7 +138,7 @@ Citation Suggestion:
 [Here is the English analysis, including relevance, innovation points, and specific citation suggestions]"""
 
             response = self.deepseek_client.chat.completions.create(
-                model="deepseek-chat",
+                model=DEEPSEEK_MODEL,
                 messages=[
                     {"role": "system", "content": "你是一个专业的双语学术论文分析助手，擅长分析论文间的关系并提供具体的引用建议。请确保建议简洁、专业且实用。"},
                     {"role": "user", "content": prompt}
@@ -340,7 +341,7 @@ Level 2 (Moderate): show me research on [适中查询]
 Level 3 (Specific): show me research on [最具体查询]"""
 
             response = self.deepseek_client.chat.completions.create(
-                model="deepseek-chat",
+                model=DEEPSEEK_MODEL,
                 messages=[
                     {"role": "system", "content": "你是一个专业的学术助手，擅长将文本改写成不同广泛程度的查询。请确保使用完整的术语，不要使用任何缩写。"},
                     {"role": "user", "content": prompt}
@@ -427,7 +428,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
 请直接返回英文翻译，不要添加任何解释或额外内容。"""
 
             response = self.deepseek_client.chat.completions.create(
-                model="deepseek-chat",
+                model=DEEPSEEK_MODEL,
                 messages=[
                     {"role": "system", "content": "你是一个专业的学术翻译助手，擅长将中文学术查询翻译成准确的英文。"},
                     {"role": "user", "content": prompt}

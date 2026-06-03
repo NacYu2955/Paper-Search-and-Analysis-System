@@ -415,7 +415,55 @@
             font-size: 1rem;
             line-height: 1.6;
             margin-bottom: 0;
-            white-space: pre-line;
+        }
+
+        .markdown-content {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3,
+        .markdown-content h4 {
+            color: var(--text-primary);
+            font-weight: 700;
+            line-height: 1.35;
+            margin: 1rem 0 0.65rem;
+        }
+
+        .markdown-content h1 { font-size: 1.35rem; }
+        .markdown-content h2 { font-size: 1.25rem; }
+        .markdown-content h3 { font-size: 1.15rem; }
+        .markdown-content h4 { font-size: 1.05rem; }
+
+        .markdown-content p,
+        .markdown-content ul,
+        .markdown-content ol {
+            margin-bottom: 0.75rem;
+        }
+
+        .markdown-content ul,
+        .markdown-content ol {
+            padding-left: 1.35rem;
+        }
+
+        .markdown-content li {
+            margin-bottom: 0.35rem;
+        }
+
+        .markdown-content strong {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        .markdown-content > :first-child {
+            margin-top: 0;
+        }
+
+        .markdown-content > :last-child {
+            margin-bottom: 0;
         }
 
         .loading {
@@ -1138,11 +1186,34 @@
     </div>
 
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.8/dist/purify.min.js"></script>
     <script>
         let cachedResults = null;  // 用于缓存搜索结果
         let cachedAnalyses = {};   // 用于缓存引用分析结果
         let currentSessionId = null; // 当前搜索会话ID
         let realtimePapers = []; // 存储实时推送的论文
+
+        function escapeHtml(value) {
+            return String(value || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function renderMarkdown(content) {
+            const text = String(content || '');
+            if (window.marked && window.DOMPurify) {
+                marked.setOptions({
+                    breaks: true,
+                    gfm: true
+                });
+                return DOMPurify.sanitize(marked.parse(text));
+            }
+            return escapeHtml(text).replace(/\n/g, '<br>');
+        }
 
         // 全局变量用于终止上一次的请求
         window.currentSearchController = null;
@@ -1244,6 +1315,7 @@
             });
             window.realtimeLevelSessions = {};
             window.realtimeLevelPapers = {};
+            window.displayedLevelPapers = {};
             // 清空展开状态
             window.expandedPapers.clear();
             
@@ -1322,7 +1394,7 @@
                             <div class="pdf-section">
                                 <div class="pdf-section-title">PDF文件</div>
                                 <div class="pdf-content" id="pdf-content-${index}">
-                                    ${result.pdf_file_path ? `<a href="javascript:void(0)" onclick="viewPDF(${result.id})" class="btn btn-link btn-sm">查看当前PDF</a>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
+                                    ${result.id ? `<a href="javascript:void(0)" onclick='viewPDF(${JSON.stringify(result.id)})' class="btn btn-link btn-sm">查看当前PDF</a>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
                                 </div>
                             </div>
                         </div>
@@ -1426,7 +1498,7 @@
                         <div class="pdf-section">
                             <div class="pdf-section-title">PDF文件</div>
                             <div class="pdf-content" id="pdf-content-${index}">
-                                ${result.pdf_file_path ? `<a href="javascript:void(0)" onclick="viewPDF(${result.id})" class="btn btn-link btn-sm">查看当前PDF</a>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
+                                ${result.id ? `<a href="javascript:void(0)" onclick='viewPDF(${JSON.stringify(result.id)})' class="btn btn-link btn-sm">查看当前PDF</a>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
                             </div>
                         </div>
                             </div>
@@ -1512,12 +1584,15 @@
 
         // 通用函数：获取论文数据
         function getPaperData(index) {
-            if (window.realtimeLevelPapers && window.realtimeLevelPapers[window.currentQueryLevel]) {
+            const numericIndex = Number(index);
+            if (window.displayedLevelPapers && window.displayedLevelPapers[window.currentQueryLevel]) {
+                return window.displayedLevelPapers[window.currentQueryLevel][numericIndex];
+            } else if (window.realtimeLevelPapers && window.realtimeLevelPapers[window.currentQueryLevel]) {
                 // 实时搜索模式
-                return window.realtimeLevelPapers[window.currentQueryLevel][index];
+                return window.realtimeLevelPapers[window.currentQueryLevel][numericIndex];
             } else if (window.searchResults) {
                 // 传统搜索模式
-                return window.searchResults[index];
+                return window.searchResults[numericIndex];
             } else {
                 console.error('无法找到论文数据');
                 return null;
@@ -1528,6 +1603,7 @@
         function analyzePaperOnClick(btn, query, index) {
             const paperIndex = btn.getAttribute('data-paper-index');
             const paper = getPaperData(paperIndex);
+            const decodedQuery = decodeURIComponent(query || '');
             
             if (!paper) {
                 console.error('论文数据为空');
@@ -1555,17 +1631,15 @@
             fetch('/analyze_paper', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query: query, paper: paper })
+                body: JSON.stringify({ query: decodedQuery, paper: paper })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    analysisDiv.innerHTML = `<span style='color:red;'>分析失败：${data.error}</span>`;
-                } else {
-                    let analysis = data.citation_analysis;
-                    let formattedContent = `<div class="analysis-section"><p class="analysis-text">${analysis}</p></div>`;
-                    analysisDiv.innerHTML = formattedContent;
+            .then(response => response.json().then(data => ({ ok: response.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok || data.error) {
+                    analysisDiv.innerHTML = `<span style='color:red;'>分析失败：${data.error || '请求失败'}</span>`;
+                    return;
                 }
+                analysisDiv.innerHTML = `<div class="analysis-section markdown-content">${renderMarkdown(data.citation_analysis || '分析结果为空')}</div>`;
             })
             .catch(error => {
                 analysisDiv.innerHTML = `<span style='color:red;'>分析失败：${error}</span>`;
@@ -1660,7 +1734,7 @@
                 if (data.error) {
                     analysisDiv.innerHTML = `<span style='color:red;'>推理失败：${data.error}</span>`;
                 } else {
-                    analysisDiv.innerHTML = `<div class='analysis-text'>${data.selector_infer}</div>`;
+                    analysisDiv.innerHTML = `<div class='analysis-text markdown-content'>${renderMarkdown(data.selector_infer)}</div>`;
                 }
             })
             .catch(err => {
@@ -1775,7 +1849,10 @@
             // 获取论文ID
             const paperId = paper.id || (index + 1); // 使用实际ID或索引作为备选
             
-            fetch(`/get_pdf_info/${paperId}`)
+            const paperIdUrl = encodeURIComponent(String(paperId));
+            const paperIdArg = JSON.stringify(String(paperId));
+
+            fetch(`/get_pdf_info/${paperIdUrl}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
@@ -1790,10 +1867,10 @@
                             <div class="alert alert-success">
                                 <i class="fas fa-check-circle"></i> PDF文件可用 (${fileSizeMB} MB)
                                 <div style="margin-top: 1rem;">
-                                    <button class="btn btn-primary btn-sm" onclick="viewPdf(${paperId})">
+                                    <button class="btn btn-primary btn-sm" onclick='viewPdf(${paperIdArg})'>
                                         <i class="fas fa-eye"></i> 查看当前PDF
                                     </button>
-                                    <button class="btn btn-secondary btn-sm ms-2" onclick="downloadPdf(${paperId})">
+                                    <button class="btn btn-secondary btn-sm ms-2" onclick='downloadPdf(${paperIdArg})'>
                                         <i class="fas fa-download"></i> 下载PDF
                                     </button>
                                 </div>
@@ -1806,7 +1883,7 @@
                                 <div style="margin-top: 1rem;">
                                     <div class="pdf-upload-form" id="upload-form-${index}">
                                         <p><i class="fas fa-cloud-upload-alt"></i> 上传PDF文件</p>
-                                        <input type="file" id="pdf-file-${index}" accept=".pdf" style="display: none;" onchange="uploadPdf(${index}, ${paperId})">
+                                        <input type="file" id="pdf-file-${index}" accept=".pdf" style="display: none;" onchange='uploadPdf(${index}, ${paperIdArg})'>
                                         <button class="btn btn-outline-success btn-sm" onclick="document.getElementById('pdf-file-${index}').click()">
                                             <i class="fas fa-upload"></i> 选择文件
                                         </button>
@@ -1827,7 +1904,7 @@
 
         function viewPdf(paperId) {
             // 先请求后端获取PDF的预签名URL
-            fetch(`/get_pdf_url/${paperId}`)
+            fetch(`/get_pdf_url/${encodeURIComponent(String(paperId))}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.url) {
@@ -1844,8 +1921,8 @@
         function downloadPdf(paperId) {
             // 下载PDF文件
             const link = document.createElement('a');
-            link.href = `/download_pdf/${paperId}`;
-            link.download = `paper_${paperId}.pdf`;
+            link.href = `/download_pdf/${encodeURIComponent(String(paperId))}`;
+            link.download = `paper_${String(paperId)}.pdf`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -1889,10 +1966,10 @@
                         <div class="alert alert-success">
                             <i class="fas fa-check-circle"></i> PDF文件上传成功！
                             <div style="margin-top: 1rem;">
-                                <button class="btn btn-primary btn-sm" onclick="viewPdf(${paperId})">
+                                <button class="btn btn-primary btn-sm" onclick='viewPdf(${JSON.stringify(String(paperId))})'>
                                     <i class="fas fa-eye"></i> 查看当前PDF
                                 </button>
-                                <button class="btn btn-secondary btn-sm ms-2" onclick="downloadPdf(${paperId})">
+                                <button class="btn btn-secondary btn-sm ms-2" onclick='downloadPdf(${JSON.stringify(String(paperId))})'>
                                     <i class="fas fa-download"></i> 下载PDF
                                 </button>
                             </div>
@@ -1965,7 +2042,12 @@
             
             const contentDiv = document.createElement('div');
             contentDiv.className = 'chat-message-content';
-            contentDiv.textContent = content;
+            if (role === 'assistant') {
+                contentDiv.classList.add('markdown-content');
+                contentDiv.innerHTML = renderMarkdown(content);
+            } else {
+                contentDiv.textContent = content;
+            }
             
             messageDiv.appendChild(contentDiv);
             messagesDiv.appendChild(messageDiv);
@@ -2083,7 +2165,12 @@
             messageDiv.className = `citation-chat-message ${role}`;
             const contentDiv = document.createElement('div');
             contentDiv.className = 'citation-chat-message-content';
-            contentDiv.textContent = content;
+            if (role === 'assistant') {
+                contentDiv.classList.add('markdown-content');
+                contentDiv.innerHTML = renderMarkdown(content);
+            } else {
+                contentDiv.textContent = content;
+            }
             messageDiv.appendChild(contentDiv);
             messagesDiv.appendChild(messageDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -2113,8 +2200,9 @@
             const streamingDiv = document.createElement('div');
             streamingDiv.className = 'citation-chat-message assistant';
             const streamingContentDiv = document.createElement('div');
-            streamingContentDiv.className = 'citation-chat-message-content';
-            streamingContentDiv.innerHTML = '<div class="streaming-content"><span class="cursor">|</span></div>';
+            streamingContentDiv.className = 'citation-chat-message-content markdown-content';
+            let streamingText = '';
+            streamingContentDiv.innerHTML = '<span class="cursor">|</span>';
             streamingDiv.appendChild(streamingContentDiv);
             messagesDiv.appendChild(streamingDiv);
             messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -2133,6 +2221,14 @@
                 })
             })
             .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || '请求失败');
+                    });
+                }
+                if (!response.body) {
+                    throw new Error('浏览器不支持流式响应');
+                }
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
@@ -2141,10 +2237,10 @@
                     return reader.read().then(({ done, value }) => {
                         if (done) {
                             // 完成时保存到对话历史
-                            const finalContent = streamingContentDiv.textContent;
                             if (citationChats[index]) {
-                                citationChats[index].messages.push({ role: 'assistant', content: finalContent });
+                                citationChats[index].messages.push({ role: 'assistant', content: streamingText });
                             }
+                            streamingContentDiv.innerHTML = renderMarkdown(streamingText);
                             return;
                         }
                         
@@ -2157,24 +2253,20 @@
                                 try {
                                     const data = JSON.parse(line.slice(6));
                                     if (data.content) {
-                                        // 添加内容
-                                        const contentElement = streamingContentDiv.querySelector('.streaming-content');
-                                        if (contentElement) {
-                                            contentElement.textContent += data.content;
-                                        } else {
-                                            streamingContentDiv.textContent += data.content;
-                                        }
+                                        streamingText += data.content;
+                                        streamingContentDiv.innerHTML = `${renderMarkdown(streamingText)}<span class="cursor">|</span>`;
                                         
                                         // 滚动到底部
                                         messagesDiv.scrollTop = messagesDiv.scrollHeight;
                                     } else if (data.error) {
-                                        streamingContentDiv.innerHTML = `<span style="color: red;">${data.error}</span>`;
+                                        streamingContentDiv.innerHTML = `<span style="color: red;">${escapeHtml(data.error)}</span>`;
                                     } else if (data.done) {
+                                        streamingContentDiv.innerHTML = renderMarkdown(streamingText);
                                         // 显示PDF内容状态
                                         if (data.has_pdf_content) {
                                             const pdfStatusDiv = document.createElement('div');
                                             pdfStatusDiv.style.cssText = 'font-size: 12px; color: #666; margin-top: 8px; font-style: italic;';
-                                            pdfStatusDiv.innerHTML = '📄 基于PDF内容进行分析';
+                                            pdfStatusDiv.textContent = '基于PDF内容进行分析';
                                             streamingContentDiv.appendChild(pdfStatusDiv);
                                         }
                                     }
@@ -2191,7 +2283,7 @@
                 return readStream();
             })
             .catch(error => {
-                streamingContentDiv.innerHTML = '<span style="color: red;">发送消息失败，请重试。</span>';
+                streamingContentDiv.innerHTML = `<span style="color: red;">发送消息失败：${escapeHtml(error.message || error)}</span>`;
                 console.error('发送消息失败:', error);
             });
         }
@@ -2222,6 +2314,7 @@
         // 实时推送缓存
         window.realtimeLevelSessions = {}; // { level: session_id }
         window.realtimeLevelPapers = {};   // { level: [paper, ...] }
+        window.displayedLevelPapers = {};  // { level: sorted currently rendered papers }
         window.currentQueryLevel = 0;
         // 添加展开状态跟踪
         window.expandedPapers = new Set(); // 存储已展开论文的ID
@@ -2306,6 +2399,9 @@
                 return scoreB - scoreA; // 降序排列，相关度高的在前面
             });
             
+            if (!window.displayedLevelPapers) window.displayedLevelPapers = {};
+            window.displayedLevelPapers[level] = sortedPapers;
+
             container.innerHTML = '';
             sortedPapers.forEach((result, i) => {
                 container.insertAdjacentHTML('beforeend', renderPaperCard(result, i, query));
@@ -2357,7 +2453,7 @@
         // PDF查看函数
         function viewPDF(paperId) {
             // 统一为异步获取预签名URL
-            fetch(`/get_pdf_url/${paperId}`)
+            fetch(`/get_pdf_url/${encodeURIComponent(String(paperId))}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.url) {

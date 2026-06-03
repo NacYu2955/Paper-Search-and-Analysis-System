@@ -17,6 +17,7 @@ __pycache__/
 
 # Runtime data and generated outputs
 output/
+pdfs/
 src/pdfs/
 src/resources/
 *.db
@@ -36,4 +37,3 @@ dataset/sft/
 
 # Notebook/runtime artifacts
 .ipynb_checkpoints/
-

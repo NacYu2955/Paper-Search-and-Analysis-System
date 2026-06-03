@@ -454,6 +454,15 @@
         let reviewedCurrentPage = 1;
         const reviewedPageSize = 10;
 
+        function getPdfLookupId(paper) {
+            const pdfPath = String(paper.pdf_file_path || '').trim();
+            if (pdfPath) {
+                const parts = pdfPath.replace(/\\/g, '/').split('/');
+                return parts[parts.length - 1];
+            }
+            return String(paper.id);
+        }
+
         async function loadPendingPapers() {
             try {
                 const response = await fetch('/admin/pending_papers');
@@ -519,8 +528,8 @@
                         <p>${paper.abstract}</p>
                     </div>
                     <div class="paper-actions">
-                        ${paper.pdf_file_path ? 
-                            `<button onclick="viewPdf(${paper.id})" class="btn btn-sm btn-primary">查看PDF</button>` : 
+                        ${paper.id ? 
+                            `<button onclick='viewPdf(${JSON.stringify(getPdfLookupId(paper))})' class="btn btn-sm btn-primary">查看PDF</button>` : 
                             `<span class="text-muted">暂无PDF</span>`
                         }
                     </div>
@@ -579,8 +588,8 @@
                         <p>${paper.abstract}</p>
                     </div>
                     <div class="paper-actions">
-                        ${paper.pdf_file_path ? 
-                            `<button onclick="viewPdf(${paper.id})" class="btn btn-success btn-sm"><i class='fas fa-file-pdf'></i> 查看PDF</button>` : 
+                        ${paper.id ? 
+                            `<button onclick='viewPdf(${JSON.stringify(getPdfLookupId(paper))})' class="btn btn-success btn-sm"><i class='fas fa-file-pdf'></i> 查看PDF</button>` : 
                             `<span class="text-muted">暂无PDF</span>`
                         }
                     </div>
@@ -677,7 +686,7 @@
 
         function viewPdf(paperId) {
             // 先请求后端获取PDF的预签名URL
-            fetch(`/get_pdf_url/${paperId}`)
+            fetch(`/get_pdf_url/${encodeURIComponent(String(paperId))}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.url) {

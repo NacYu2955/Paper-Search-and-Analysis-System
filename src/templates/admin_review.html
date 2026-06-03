@@ -492,6 +492,15 @@
     </div>
 
     <script>
+        function getPdfLookupId(paper) {
+            const pdfPath = String(paper.pdf_file_path || '').trim();
+            if (pdfPath) {
+                const parts = pdfPath.replace(/\\/g, '/').split('/');
+                return parts[parts.length - 1];
+            }
+            return String(paper.id);
+        }
+
         // 加载搜索统计信息
         async function loadSearchStats() {
             try {
@@ -634,7 +643,7 @@
                             <input type="file" accept=".pdf" id="pdf-upload-${paper.id}" style="max-width:200px;">
                             <button class="btn btn-outline-primary btn-sm" onclick="uploadAdminPdf(${paper.id})">重新上传PDF</button>
                             <span id="pdf-status-${paper.id}" style="margin-left:10px;color:#28a745;font-size:0.95em;"></span>
-                            ${paper.pdf_file_path ? `<button onclick="viewPdf(${paper.id})" class="btn btn-link btn-sm">查看当前PDF</button>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
+                            ${paper.id ? `<button onclick='viewPdf(${JSON.stringify(getPdfLookupId(paper))})' class="btn btn-link btn-sm">查看当前PDF</button>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
                         </div>
                     </div>
                     <div style="margin-top:1rem;">
@@ -921,7 +930,7 @@
                             <input type="file" accept=".pdf" id="pdf-upload-${paper.id}" style="max-width:200px;">
                             <button class="btn btn-outline-primary btn-sm" onclick="uploadAdminPdf(${paper.id})">重新上传PDF</button>
                             <span id="pdf-status-${paper.id}" style="margin-left:10px;color:#28a745;font-size:0.95em;"></span>
-                            ${paper.pdf_file_path ? `<button onclick="viewPdf(${paper.id})" class="btn btn-link btn-sm">查看当前PDF</button>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
+                            ${paper.id ? `<button onclick='viewPdf(${JSON.stringify(getPdfLookupId(paper))})' class="btn btn-link btn-sm">查看当前PDF</button>` : '<span style="color:#888;font-size:0.95em;">暂无PDF</span>'}
                         </div>
                             </div>
                     <div style="margin-top:1rem;">
@@ -977,7 +986,7 @@
 
         window.viewPdf = function(paperId) {
             // 先请求后端获取PDF的预签名URL
-            fetch(`/get_pdf_url/${paperId}`)
+            fetch(`/get_pdf_url/${encodeURIComponent(String(paperId))}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success && data.url) {
