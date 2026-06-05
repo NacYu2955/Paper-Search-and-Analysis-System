@@ -42,7 +42,10 @@ The web application is designed for interactive paper discovery: users can searc
 |   |-- templates/                 # Web UI templates
 |   `-- frequency_dictionary_en_82_765.txt
 |-- dataset/
-|   `-- testset.jsonl              # Retrieval evaluation set
+|   |-- testset.jsonl              # Retrieval evaluation set
+|   `-- sft_selector/
+|       |-- train.jsonl            # Selector SFT training data in chat-message JSONL format
+|       `-- test.jsonl             # Selector True/False held-out evaluation data
 |-- model/
 |   |-- all-MiniLM-L6-v2/          # Local sentence-transformer model
 |   `-- pasa-7b-selector/          # Local selector/reranker model
@@ -228,6 +231,22 @@ Outputs are written to `output/eval/`:
 - `*_report_metrics.csv`
 
 Metrics include hit/retrieval quality at configured K values, final output metrics, mean latency, P50 latency, and P95 latency.
+
+## Selector SFT Data
+
+The selector fine-tuning dataset lives in `dataset/sft_selector/`.
+
+- `train.jsonl` contains supervised chat-format examples for training the selector to decide whether a candidate paper satisfies a user query.
+- `test.jsonl` contains held-out True/False selector evaluation examples in the same message format.
+
+Each row stores a `messages` array with the user prompt, searched paper metadata, target user query, and assistant label/reason. The expected selector output follows:
+
+```text
+Decision: True/False
+Reason: ...
+```
+
+Selector evaluation outputs are stored in `output/selector_eval/`.
 
 ## PDF Storage
 
