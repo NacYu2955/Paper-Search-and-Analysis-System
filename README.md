@@ -267,4 +267,6 @@ PDF text is extracted with `PyPDF2` for paper chat and analysis features. COS fi
 
 ## License
 
-The selector wrapper in `coding/models.py` includes an Apache-2.0 header from ByteDance. Check the licenses of bundled model directories before redistribution or deployment.
+Project source code is released under the MIT License in `LICENSE`.
+
+Bundled model artifacts may carry their own upstream licenses or usage terms. Check the license files and model cards for any files under `model/` before redistribution or deployment.
