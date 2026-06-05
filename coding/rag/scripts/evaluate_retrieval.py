@@ -27,8 +27,8 @@ from config.config import (  # noqa: E402
     SELECTOR_PATH,
     TESTSET_PATH,
 )
-from rag.paper_rag import QwenReranker, RAGPipeline  # noqa: E402
-from rag.paper_rag.evaluation import (  # noqa: E402
+from coding.rag.paper_rag import QwenReranker, RAGPipeline  # noqa: E402
+from coding.rag.paper_rag.evaluation import (  # noqa: E402
     build_query_detail,
     build_report_metrics,
     compute_metrics,

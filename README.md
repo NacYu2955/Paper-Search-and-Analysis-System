@@ -1,12 +1,12 @@
 # Paper Search and Analysis System
 
-The system is a Flask-based academic paper search system for a closed paper corpus. It combines sentence-embedding retrieval, an optional PASA/Qwen selector reranker, DeepSeek-powered query rewriting and analysis, PDF management, and a separate RAG evaluation pipeline for dense, sparse, and hybrid retrieval experiments.
+The system is a Flask-based academic paper search system for a closed paper corpus. It combines hybrid dense/BM25 retrieval, an optional PASA/Qwen selector reranker, DeepSeek-powered query rewriting and analysis, PDF management, and a shared RAG evaluation pipeline for dense, sparse, and hybrid retrieval experiments.
 
 The web application is designed for interactive paper discovery: users can search in natural language, receive real-time results through Socket.IO, inspect paper metadata, generate BibTeX, upload and review papers, view PDFs, and ask citation-oriented questions about selected papers.
 
 ## Features
 
-- Semantic paper search with `all-MiniLM-L6-v2` embeddings.
+- Hybrid paper search with `all-MiniLM-L6-v2` dense retrieval, BM25 sparse retrieval, and Reciprocal Rank Fusion.
 - Optional local selector reranking with `model/selector`.
 - Real-time search result streaming through Flask-SocketIO.
 - Chinese query translation and English spelling correction before retrieval.
@@ -24,17 +24,18 @@ The web application is designed for interactive paper discovery: users can searc
 |-- config/
 |   `-- config.py                  # Runtime paths, model paths, API keys, COS, and RAG settings
 |-- coding/
-|   |-- paper_search.py            # Main semantic search, query rewriting, rerank, BibTeX, analysis
+|   |-- paper_search.py            # Main hybrid search, query rewriting, rerank, BibTeX, analysis
 |   |-- models.py                  # Local selector model wrapper
 |   |-- cos_utils.py               # Tencent COS upload/download/presigned URL helpers
 |   |-- db_models.py               # SQLAlchemy model definitions
-|   `-- setup_cos.py               # Interactive COS setup helper
-|-- rag/
-|   |-- paper_rag/                 # RAG loader, dense store, BM25, fusion, reranker, evaluation
-|   `-- scripts/
-|       |-- build_rag_index.py     # Build dense/BM25 retrieval index from papers.db
-|       |-- test_preretrieval.py   # Run a single retrieval query from the command line
-|       `-- evaluate_retrieval.py  # Evaluate dense/sparse/hybrid retrieval and rerank
+|   |-- setup_cos.py               # Interactive COS setup helper
+|   |-- evaluation/                # Selector and metric plotting utilities
+|   `-- rag/
+|       |-- paper_rag/             # RAG loader, dense store, BM25, fusion, reranker, evaluation
+|       `-- scripts/
+|           |-- build_rag_index.py     # Build dense/BM25 retrieval index from papers.db
+|           |-- test_preretrieval.py   # Run a single retrieval query from the command line
+|           `-- evaluate_retrieval.py  # Evaluate dense/sparse/hybrid retrieval and rerank
 |-- src/
 |   |-- papers.db                  # SQLite paper database used by default
 |   |-- agent_prompt.json          # Prompt templates for selector/query tasks
@@ -63,7 +64,7 @@ Install Python dependencies:
 pip install -r requirements.txt
 ```
 
-Optional RAG dense indexing with Milvus Lite requires `pymilvus`, which is used by `rag/paper_rag/milvus_store.py` but is not currently listed in `requirements.txt`:
+Optional RAG dense indexing with Milvus Lite requires `pymilvus`, which is used by `coding/rag/paper_rag/milvus_store.py` but is not currently listed in `requirements.txt`:
 
 ```bash
 pip install pymilvus
@@ -162,13 +163,14 @@ Useful API endpoints include `/search`, `/search_realtime`, `/paper_chat`, `/cit
 
 1. `PaperSearch` loads the local sentence-transformer model.
 2. Paper records are loaded from SQLite.
-3. Title and abstract text are embedded for semantic similarity search.
+3. Title and abstract text are embedded for dense semantic search, and a BM25 sparse index is built from the same paper corpus.
 4. User queries are normalized:
    - Chinese text can be translated to English through DeepSeek.
    - English spelling can be corrected with SymSpell.
-5. The top semantic candidates are selected by cosine similarity.
-6. If the selector model is available, candidates are reranked and filtered by selector score.
-7. Results are returned with metadata, similarity, selector score, BibTeX, and optional PDF paths.
+5. The online frontend requests `retrieval_mode: hybrid` by default.
+6. Dense and BM25 candidates are fused with Reciprocal Rank Fusion to produce the top retrieval candidates.
+7. If the selector model is available, candidates are reranked and filtered by selector score.
+8. Results are returned with metadata, hybrid retrieval score, dense/BM25 branch scores, selector score, BibTeX, and optional PDF paths.
 
 The web app also supports multi-level query generation. DeepSeek rewrites an input query into broad, moderate, and specific research queries, then the selected level is searched.
 
@@ -177,13 +179,13 @@ The web app also supports multi-level query generation. DeepSeek rewrites an inp
 Build or refresh the RAG index:
 
 ```bash
-python rag/scripts/build_rag_index.py --force
+python coding/rag/scripts/build_rag_index.py --force
 ```
 
 Run a single retrieval query:
 
 ```bash
-python rag/scripts/test_preretrieval.py "graph neural networks for traffic prediction" --mode hybrid --top-k 10
+python coding/rag/scripts/test_preretrieval.py "graph neural networks for traffic prediction" --mode hybrid --top-k 10
 ```
 
 Supported retrieval modes:
@@ -208,13 +210,13 @@ The evaluation set is a JSONL file where each row contains a question and one or
 Evaluate retrieval:
 
 ```bash
-python rag/scripts/evaluate_retrieval.py --retrieval-mode all --candidate-k 50 --final-k 5
+python coding/rag/scripts/evaluate_retrieval.py --retrieval-mode all --candidate-k 50 --final-k 5
 ```
 
 Evaluate retrieval plus selector reranking:
 
 ```bash
-python rag/scripts/evaluate_retrieval.py --retrieval-mode hybrid --candidate-k 50 --final-k 5 --rerank
+python coding/rag/scripts/evaluate_retrieval.py --retrieval-mode hybrid --candidate-k 50 --final-k 5 --rerank
 ```
 
 Outputs are written to `output/eval/`:

@@ -1330,6 +1330,7 @@
                 body: JSON.stringify({
                     query,
                     mode: 'original',
+                    retrieval_mode: 'hybrid',
                     query_level: 0,
                     session_id
                 })
@@ -1344,6 +1345,26 @@
 
         // 删除不再使用的传统搜索函数，现在所有搜索都使用实时推送
 
+        function formatRetrievalBadges(result) {
+            const mode = result.retrieval_mode || 'dense';
+            const retrievalScore = Number(result.retrieval_score ?? result.similarity ?? 0);
+            const badges = [];
+            if (mode === 'hybrid') {
+                badges.push(`<span class="score-badge">Hybrid检索得分：${retrievalScore.toFixed(4)}</span>`);
+                if (result.dense_score !== null && result.dense_score !== undefined) {
+                    badges.push(`<span class="score-badge">Dense：${(Number(result.dense_score) * 100).toFixed(1)}%</span>`);
+                }
+                if (result.sparse_score !== null && result.sparse_score !== undefined) {
+                    badges.push(`<span class="score-badge">BM25：${Number(result.sparse_score).toFixed(3)}</span>`);
+                }
+                return badges.join('');
+            }
+            if (mode === 'sparse') {
+                return `<span class="score-badge">BM25检索得分：${retrievalScore.toFixed(3)}</span>`;
+            }
+            return `<span class="score-badge">文本向量相似度：${(retrievalScore * 100).toFixed(1)}%</span>`;
+        }
+
         // 渲染论文卡片，内容与用户模板完全一致
         function renderPaperCard(result, index, query) {
             return `
@@ -1354,7 +1375,7 @@
                             <span id="toggle-icon-${index}" style="font-size:1.1rem; margin-left:8px; color:#888;">▼</span>
                         </h3>
                         <div class="score-info" style="margin-bottom: 0.5rem;">
-                            <span class="score-badge">文本向量相似度：${(result.similarity * 100).toFixed(1)}%</span>
+                            ${formatRetrievalBadges(result)}
                             <span class="score-badge">大模型理解相关度：${(result.select_score * 100).toFixed(1)}%</span>
                         </div>
                         <div class="paper-detail" id="paper-detail-${index}" style="display:none;">
@@ -1458,7 +1479,7 @@
                                 <span id="toggle-icon-${index}" style="font-size:1.1rem; margin-left:8px; color:#888;">▼</span>
                             </h3>
                             <div class="score-info" style="margin-bottom: 0.5rem;">
-                                <span class="score-badge">文本向量相似度：${(result.similarity * 100).toFixed(1)}%</span>
+                                ${formatRetrievalBadges(result)}
                                 <span class="score-badge">大模型理解相关度：${(result.select_score * 100).toFixed(1)}%</span>
                             </div>
                             <div class="paper-detail" id="paper-detail-${index}" style="display:none;">
@@ -1535,10 +1556,7 @@
                                             <span class="candidate-text">${result.title}</span>
                                         </div>
                                         <div class="candidate-scores">
-                                            <span class="score-badge">
-                                                <i class="fas fa-chart-line"></i>
-                                                文本向量相似度：${(result.similarity * 100).toFixed(1)}%
-                                            </span>
+                                            ${formatRetrievalBadges(result)}
                                             <button class="btn btn-outline-info btn-sm ms-2" onclick="showSelectorInfer(this, ${index})">原因</button>
                                         </div>
                                         <div class="candidate-analysis" id="selector-infer-${index}" style="display:none;"></div>
@@ -1566,10 +1584,7 @@
                                             <span class="candidate-text">${result.title}</span>
                                         </div>
                                         <div class="candidate-scores">
-                                            <span class="score-badge">
-                                                <i class="fas fa-chart-line"></i>
-                                                文本向量相似度：${(result.similarity * 100).toFixed(1)}%
-                                            </span>
+                                            ${formatRetrievalBadges(result)}
                                         </div>
                                     </div>
                                 `).join('') : '<div style="color:red;">没有候选论文数据</div>'}

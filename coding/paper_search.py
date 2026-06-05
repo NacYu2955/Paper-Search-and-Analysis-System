@@ -18,7 +18,12 @@ from config.config import (
     DEEPSEEK_BASE_URL,
     DEEPSEEK_MODEL,
     DICTIONARY_PATH,
+    RAG_MAX_TEXT_CHARS,
+    RAG_RRF_K,
 )
+from coding.rag.paper_rag.documents import paper_to_document
+from coding.rag.paper_rag.fusion import reciprocal_rank_fusion
+from coding.rag.paper_rag.sparse_store import BM25SparseStore
 
 # 设置环境变量以优化内存使用
 os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'expandable_segments:True'
@@ -80,6 +85,9 @@ class PaperSearch:
 
         self.papers = []
         self.embeddings = None
+        self.paper_documents = []
+        self.paper_id_to_index = {}
+        self.sparse_store = BM25SparseStore()
         
     def load_papers(self):
         """从papers.db数据库加载论文"""
@@ -105,9 +113,122 @@ class PaperSearch:
             print("正在计算论文向量...")
             self.embeddings = self.model.encode(texts, show_progress_bar=True, batch_size=32)
             print(f"完成向量计算,共 {len(self.papers)} 篇论文")
+            self.paper_documents = [
+                paper_to_document(paper, max_chars=RAG_MAX_TEXT_CHARS)
+                for paper in self.papers
+            ]
+            self.paper_id_to_index = {
+                int(paper["id"]): index
+                for index, paper in enumerate(self.papers)
+                if paper.get("id") is not None
+            }
+            self.sparse_store.build(self.paper_documents)
+            print(f"完成BM25稀疏检索索引构建,共 {self.sparse_store.count()} 篇论文")
         except Exception as e:
             print(f"加载论文数据失败: {str(e)}")
             raise
+
+    def _dense_hits(self, query_text, top_k=50):
+        query_embedding = self.model.encode([query_text])[0]
+        similarities = cosine_similarity([query_embedding], self.embeddings)[0]
+        indices = np.argsort(similarities)[::-1][:top_k]
+        hits = []
+        for idx in indices:
+            paper = self.papers[int(idx)]
+            paper_id = paper.get("id")
+            if paper_id is None:
+                continue
+            hits.append({
+                "paper_id": int(paper_id),
+                "score": float(similarities[int(idx)]),
+            })
+        return hits
+
+    def _retrieve_candidate_results(self, query_text, top_k=50, retrieval_mode="hybrid"):
+        retrieval_mode = (retrieval_mode or "hybrid").lower()
+        if retrieval_mode not in {"dense", "sparse", "hybrid"}:
+            retrieval_mode = "hybrid"
+
+        dense_hits = []
+        sparse_hits = []
+        if retrieval_mode in {"dense", "hybrid"}:
+            dense_hits = self._dense_hits(query_text, top_k=top_k)
+        if retrieval_mode in {"sparse", "hybrid"}:
+            sparse_hits = self.sparse_store.search(query_text, top_k=top_k)
+
+        if retrieval_mode == "dense":
+            hits = dense_hits
+            backend_name = "dense"
+        elif retrieval_mode == "sparse":
+            hits = sparse_hits
+            backend_name = self.sparse_store.backend_name
+        else:
+            hits = reciprocal_rank_fusion(
+                {"dense": dense_hits, "sparse": sparse_hits},
+                top_k=top_k,
+                rrf_k=RAG_RRF_K,
+            )
+            backend_name = f"hybrid_rrf(dense+{self.sparse_store.backend_name})"
+
+        candidate_results = []
+        for rank, hit in enumerate(hits, start=1):
+            paper_id = int(hit["paper_id"])
+            paper_index = self.paper_id_to_index.get(paper_id)
+            if paper_index is None:
+                continue
+
+            paper = self.papers[paper_index]
+            branch_scores = hit.get("branch_scores", {})
+            branch_ranks = hit.get("branch_ranks", {})
+            dense_score = branch_scores.get("dense")
+            sparse_score = branch_scores.get("sparse")
+            dense_rank = branch_ranks.get("dense")
+            sparse_rank = branch_ranks.get("sparse")
+
+            if retrieval_mode == "dense":
+                dense_score = float(hit["score"])
+                dense_rank = rank
+            elif retrieval_mode == "sparse":
+                sparse_score = float(hit["score"])
+                sparse_rank = rank
+
+            retrieval_score = float(hit["score"])
+            candidate_results.append({
+                "paper": paper,
+                "similarity": retrieval_score,
+                "retrieval_score": retrieval_score,
+                "dense_score": dense_score,
+                "sparse_score": sparse_score,
+                "dense_rank": dense_rank,
+                "sparse_rank": sparse_rank,
+                "retrieval_mode": retrieval_mode,
+                "retrieval_backend": backend_name,
+                "bibtex": self.generate_bibtex(paper),
+            })
+        return candidate_results
+
+    def _format_search_result(self, result, include_select_score=True):
+        paper = result["paper"]
+        formatted_result = {
+            "id": paper.get("id", None),
+            "title": paper["title"],
+            "authors": (paper.get("authors") or paper.get("author") or "").split(" and ") if (paper.get("authors") or paper.get("author")) else ["Unknown"],
+            "year": paper.get("year", "Unknown"),
+            "abstract": paper.get("abstract", "No abstract available"),
+            "similarity": float(result["similarity"]),
+            "retrieval_score": float(result.get("retrieval_score", result["similarity"])),
+            "dense_score": result.get("dense_score"),
+            "sparse_score": result.get("sparse_score"),
+            "dense_rank": result.get("dense_rank"),
+            "sparse_rank": result.get("sparse_rank"),
+            "retrieval_mode": result.get("retrieval_mode", "dense"),
+            "retrieval_backend": result.get("retrieval_backend"),
+            "bibtex": result["bibtex"],
+            "pdf_file_path": paper.get("pdf_file_path", None),
+        }
+        if include_select_score:
+            formatted_result["select_score"] = float(result.get("select_score", 0.0))
+        return formatted_result
 
     def analyze_citation(self, query_paper, selected_paper):
         """
@@ -190,18 +311,7 @@ Citation Suggestion:
                         # 格式化高评分论文
                         formatted_high_score_results = []
                         for result in high_score_results:
-                            paper = result['paper']
-                            formatted_result = {
-                                'id': paper.get('id', None),
-                                'title': paper['title'],
-                                'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
-                                'year': paper.get('year', 'Unknown'),
-                                'abstract': paper.get('abstract', 'No abstract available'),
-                                'similarity': float(result['similarity']),
-                                'select_score': float(result['select_score']),
-                                'bibtex': result['bibtex'],
-                                'pdf_file_path': paper.get('pdf_file_path', None)
-                            }
+                            formatted_result = self._format_search_result(result)
                             # 添加翻译信息
                             if hasattr(self, 'last_corrected_query') and self.last_corrected_query:
                                 formatted_result['corrected_query'] = self.last_corrected_query
@@ -446,7 +556,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
             # 如果翻译失败，返回原文
             return chinese_text
 
-    def search_papers(self, query_paper, top_k=5, user_query=None, mode='multi-level', target_level=None):
+    def search_papers(self, query_paper, top_k=5, user_query=None, mode='multi-level', target_level=None, retrieval_mode='hybrid'):
         """
         支持两种模式：
         - mode='original'：只返回原文查询结果（不分级）
@@ -468,34 +578,17 @@ Level 3 (Specific): show me research on [最具体查询]"""
         # 原文查询模式直接使用向量检索
         if mode == 'original' or target_level is None:
             print("\n使用原文查询模式...")
-            query_embedding = self.model.encode([query_text])[0]
-            similarities = cosine_similarity([query_embedding], self.embeddings)[0]
-            indices = np.argsort(similarities)[::-1][:50]
-            candidate_results = []
-            for idx in indices:
-                paper = self.papers[idx]
-                bibtex = self.generate_bibtex(paper)
-                candidate_results.append({
-                    "paper": paper,
-                    "similarity": similarities[idx],
-                    "bibtex": bibtex
-                })
+            candidate_results = self._retrieve_candidate_results(
+                query_text,
+                top_k=50,
+                retrieval_mode=retrieval_mode,
+            )
             print(f"\n找到 {len(candidate_results)} 篇候选论文")
             
             # 格式化候选结果
             formatted_candidates = []
             for result in candidate_results:
-                paper = result['paper']
-                formatted_result = {
-                    'id': paper.get('id', None),
-                    'title': paper['title'],
-                    'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
-                    'year': paper.get('year', 'Unknown'),
-                    'abstract': paper.get('abstract', 'No abstract available'),
-                    'similarity': float(result['similarity']),
-                    'bibtex': result['bibtex']
-                }
-                formatted_candidates.append(formatted_result)
+                formatted_candidates.append(self._format_search_result(result, include_select_score=False))
             
             # 使用 selector 过滤结果
             if self.selector:
@@ -530,19 +623,8 @@ Level 3 (Specific): show me research on [最具体查询]"""
             # 格式化最终结果
             formatted_results = []
             for result in candidate_results:
-                paper = result['paper']
-                formatted_result = {
-                    'id': paper.get('id', None),
-                    'title': paper['title'],
-                    'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
-                    'year': paper.get('year', 'Unknown'),
-                    'abstract': paper.get('abstract', 'No abstract available'),
-                    'similarity': float(result['similarity']),
-                    'select_score': float(result.get('select_score', 0.0)),
-                    'citation_analysis': result.get('citation_analysis', '分析失败'),
-                    'bibtex': result['bibtex'],
-                    'pdf_file_path': paper.get('pdf_file_path', None)
-                }
+                formatted_result = self._format_search_result(result)
+                formatted_result['citation_analysis'] = result.get('citation_analysis', '分析失败')
                 formatted_results.append(formatted_result)
             
             return {
@@ -558,33 +640,16 @@ Level 3 (Specific): show me research on [最具体查询]"""
         query = queries[target_level]
         print(f"生成的查询: {query}")
         
-        query_embedding = self.model.encode([query])[0]
-        similarities = cosine_similarity([query_embedding], self.embeddings)[0]
-        indices = np.argsort(similarities)[::-1][:50]
-        candidate_results = []
-        for idx in indices:
-            paper = self.papers[idx]
-            bibtex = self.generate_bibtex(paper)
-            candidate_results.append({
-                "paper": paper,
-                "similarity": similarities[idx],
-                "bibtex": bibtex
-            })
+        candidate_results = self._retrieve_candidate_results(
+            query,
+            top_k=50,
+            retrieval_mode=retrieval_mode,
+        )
         print(f"\n找到 {len(candidate_results)} 篇候选论文")
         
         formatted_candidates = []
         for result in candidate_results:
-            paper = result['paper']
-            formatted_result = {
-                'id': paper.get('id', None),
-                'title': paper['title'],
-                'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
-                'year': paper.get('year', 'Unknown'),
-                'abstract': paper.get('abstract', 'No abstract available'),
-                'similarity': float(result['similarity']),
-                'bibtex': result['bibtex']
-            }
-            formatted_candidates.append(formatted_result)
+            formatted_candidates.append(self._format_search_result(result, include_select_score=False))
             
         if self.selector:
             try:
@@ -617,19 +682,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
             
         formatted_results = []
         for result in candidate_results:
-            paper = result['paper']
-            formatted_result = {
-                'id': paper.get('id', None),
-                'title': paper['title'],
-                'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
-                'year': paper.get('year', 'Unknown'),
-                'abstract': paper.get('abstract', 'No abstract available'),
-                'similarity': float(result['similarity']),
-                'select_score': float(result.get('select_score', 0.0)),
-                'bibtex': result['bibtex'],
-                'pdf_file_path': paper.get('pdf_file_path', None)
-            }
-            formatted_results.append(formatted_result)
+            formatted_results.append(self._format_search_result(result))
             
         return {
             'candidates': formatted_candidates,
@@ -638,7 +691,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
             'corrected_query': corrected_query
         }
 
-    def search_papers_realtime(self, query_paper, user_query=None, mode='original', target_level=None, callback=None):
+    def search_papers_realtime(self, query_paper, user_query=None, mode='original', target_level=None, callback=None, retrieval_mode='hybrid'):
         """
         实时搜索论文，支持批次推送高评分论文
         :param callback: 回调函数，用于推送高评分论文
@@ -674,34 +727,17 @@ Level 3 (Specific): show me research on [最具体查询]"""
         # 原文查询模式直接使用向量检索
         if mode == 'original' or target_level is None:
             print("\n使用原文查询模式...")
-            query_embedding = self.model.encode([query_text])[0]
-            similarities = cosine_similarity([query_embedding], self.embeddings)[0]
-            indices = np.argsort(similarities)[::-1][:50]
-            candidate_results = []
-            for idx in indices:
-                paper = self.papers[idx]
-                bibtex = self.generate_bibtex(paper)
-                candidate_results.append({
-                    "paper": paper,
-                    "similarity": similarities[idx],
-                    "bibtex": bibtex
-                })
+            candidate_results = self._retrieve_candidate_results(
+                query_text,
+                top_k=50,
+                retrieval_mode=retrieval_mode,
+            )
             print(f"\n找到 {len(candidate_results)} 篇候选论文")
             
             # 格式化候选结果
             formatted_candidates = []
             for result in candidate_results:
-                paper = result['paper']
-                formatted_result = {
-                    'id': paper.get('id', None),
-                    'title': paper['title'],
-                    'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
-                    'year': paper.get('year', 'Unknown'),
-                    'abstract': paper.get('abstract', 'No abstract available'),
-                    'similarity': float(result['similarity']),
-                    'bibtex': result['bibtex']
-                }
-                formatted_candidates.append(formatted_result)
+                formatted_candidates.append(self._format_search_result(result, include_select_score=False))
             
             # 使用 selector 过滤结果，支持实时推送
             if self.selector:
@@ -740,19 +776,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
             # 格式化最终结果
             formatted_results = []
             for result in filtered_results:
-                paper = result['paper']
-                formatted_result = {
-                    'id': paper.get('id', None),
-                    'title': paper['title'],
-                    'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
-                    'year': paper.get('year', 'Unknown'),
-                    'abstract': paper.get('abstract', 'No abstract available'),
-                    'similarity': float(result['similarity']),
-                    'select_score': float(result.get('select_score', 0.0)),
-                    'bibtex': result['bibtex'],
-                    'pdf_file_path': paper.get('pdf_file_path', None)
-                }
-                formatted_results.append(formatted_result)
+                formatted_results.append(self._format_search_result(result))
             
             return {
                 'candidates': formatted_candidates,
@@ -767,33 +791,16 @@ Level 3 (Specific): show me research on [最具体查询]"""
         query = queries[target_level]
         print(f"生成的查询: {query}")
         
-        query_embedding = self.model.encode([query])[0]
-        similarities = cosine_similarity([query_embedding], self.embeddings)[0]
-        indices = np.argsort(similarities)[::-1][:50]
-        candidate_results = []
-        for idx in indices:
-            paper = self.papers[idx]
-            bibtex = self.generate_bibtex(paper)
-            candidate_results.append({
-                "paper": paper,
-                "similarity": similarities[idx],
-                "bibtex": bibtex
-            })
+        candidate_results = self._retrieve_candidate_results(
+            query,
+            top_k=50,
+            retrieval_mode=retrieval_mode,
+        )
         print(f"\n找到 {len(candidate_results)} 篇候选论文")
         
         formatted_candidates = []
         for result in candidate_results:
-            paper = result['paper']
-            formatted_result = {
-                'id': paper.get('id', None),
-                'title': paper['title'],
-                'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
-                'year': paper.get('year', 'Unknown'),
-                'abstract': paper.get('abstract', 'No abstract available'),
-                'similarity': float(result['similarity']),
-                'bibtex': result['bibtex']
-            }
-            formatted_candidates.append(formatted_result)
+            formatted_candidates.append(self._format_search_result(result, include_select_score=False))
             
         if self.selector:
             try:
@@ -830,19 +837,7 @@ Level 3 (Specific): show me research on [最具体查询]"""
             
         formatted_results = []
         for result in filtered_results:
-            paper = result['paper']
-            formatted_result = {
-                'id': paper.get('id', None),
-                'title': paper['title'],
-                'authors': (paper.get('authors') or paper.get('author') or '').split(' and ') if (paper.get('authors') or paper.get('author')) else ['Unknown'],
-                'year': paper.get('year', 'Unknown'),
-                'abstract': paper.get('abstract', 'No abstract available'),
-                'similarity': float(result['similarity']),
-                'select_score': float(result.get('select_score', 0.0)),
-                'bibtex': result['bibtex'],
-                'pdf_file_path': paper.get('pdf_file_path', None)
-            }
-            formatted_results.append(formatted_result)
+            formatted_results.append(self._format_search_result(result))
             
         return {
             'candidates': formatted_candidates,

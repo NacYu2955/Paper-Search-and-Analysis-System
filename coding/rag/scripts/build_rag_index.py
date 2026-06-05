@@ -21,7 +21,7 @@ from config.config import (  # noqa: E402
     RAG_MILVUS_URI,
     RAG_RRF_K,
 )
-from rag.paper_rag import RAGPipeline  # noqa: E402
+from coding.rag.paper_rag import RAGPipeline  # noqa: E402
 
 
 def main():

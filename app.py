@@ -638,6 +638,7 @@ def search():
         data = request.get_json()
         query = data.get('query', '')
         mode = data.get('mode', 'original')
+        retrieval_mode = data.get('retrieval_mode', 'hybrid')
         query_level = int(data.get('query_level', 2))  # 默认适中
         
         if not query:
@@ -692,7 +693,7 @@ def search():
         
         if mode == 'original':
             # 原文查询模式直接执行，不生成分级查询
-            results = searcher.search_papers(query, mode='original')
+            results = searcher.search_papers(query, mode='original', retrieval_mode=retrieval_mode)
             return jsonify({
                 'success': True,
                 'results': {'level_0': results},
@@ -702,7 +703,7 @@ def search():
         else:
             # 分级查询模式才生成分级查询
             queries = searcher.generate_queries(query)
-            results = searcher.search_papers(query, mode='multi-level', target_level=query_level)
+            results = searcher.search_papers(query, mode='multi-level', target_level=query_level, retrieval_mode=retrieval_mode)
             return jsonify({
                 'success': True,
                 'results': {f'level_{query_level}': results},
@@ -794,6 +795,7 @@ def search_papers():
     try:
         data = request.get_json()
         query = data.get('query', '')
+        retrieval_mode = data.get('retrieval_mode', 'hybrid')
         level = data.get('level', None)  # 新增level参数
         
         if not query:
@@ -806,10 +808,10 @@ def search_papers():
         # 根据level参数决定搜索模式
         if level is not None:
             # 分级搜索模式
-            results = searcher.search_papers(query, mode='multi-level', target_level=level)
+            results = searcher.search_papers(query, mode='multi-level', target_level=level, retrieval_mode=retrieval_mode)
         else:
             # 原始搜索模式
-            results = searcher.search_papers(query, mode='original')
+            results = searcher.search_papers(query, mode='original', retrieval_mode=retrieval_mode)
             
         return jsonify(results)
         
@@ -1994,6 +1996,7 @@ def search_realtime():
         data = request.get_json()
         query = data.get('query', '')
         mode = data.get('mode', 'original')
+        retrieval_mode = data.get('retrieval_mode', 'hybrid')
         query_level = int(data.get('query_level', 2))
         session_id = data.get('session_id', 'default')
         
@@ -2047,6 +2050,7 @@ def search_realtime():
             'candidates': [],
             'original_query': query,
             'corrected_query': None,
+            'retrieval_mode': retrieval_mode,
             'completed': False
         }
         
@@ -2140,9 +2144,9 @@ def search_realtime():
                     callback_with_translation(high_score_papers, batch_num, corrected_query)
                 
                 if mode == 'original':
-                    results = searcher.search_papers_realtime(final_query, mode='original', callback=callback_with_translation_info)
+                    results = searcher.search_papers_realtime(final_query, mode='original', callback=callback_with_translation_info, retrieval_mode=retrieval_mode)
                 else:
-                    results = searcher.search_papers_realtime(final_query, mode='multi-level', target_level=query_level, callback=callback_with_translation_info)
+                    results = searcher.search_papers_realtime(final_query, mode='multi-level', target_level=query_level, callback=callback_with_translation_info, retrieval_mode=retrieval_mode)
                 
                 # 更新会话结果
                 app.realtime_results[session_id].update({
@@ -2150,12 +2154,14 @@ def search_realtime():
                     'original_query': original_query,
                     'final_query': final_query,
                     'corrected_query': results.get('corrected_query'),
+                    'retrieval_mode': retrieval_mode,
                     'completed': True
                 })
                 
                 # 发送完成信号
                 socketio.emit('search_completed', {
                     'session_id': session_id,
+                    'retrieval_mode': retrieval_mode,
                     'total_candidates': len(results.get('candidates', [])),
                     'total_papers': len(app.realtime_results[session_id]['papers'])
                 }, room=session_id)
